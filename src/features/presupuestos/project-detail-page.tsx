@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getProject } from '@/lib/api/projects'
 import type { ProjectStatus } from '@/types/projects'
@@ -54,6 +55,13 @@ export function ProjectDetailPage() {
               ₡{project.currentProfit.toLocaleString('es-CR')}
             </span>
           </div>
+          <Button
+            variant="outline"
+            className="w-fit"
+            render={<Link to={`/proyectos/${project.id}/bitacoras`} />}
+          >
+            Ver bitácoras
+          </Button>
         </CardContent>
       </Card>
     </div>

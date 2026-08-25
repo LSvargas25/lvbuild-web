@@ -1,6 +1,11 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { HomePage } from '@/app/home-page'
 import { AppLayout } from '@/components/layout/app-layout'
+import { PayrollCreatePage } from '@/features/bitacoras/payroll-create-page'
+import { PayrollDetailPage } from '@/features/bitacoras/payroll-detail-page'
+import { SiteLogCreatePage } from '@/features/bitacoras/sitelog-create-page'
+import { SiteLogDetailPage } from '@/features/bitacoras/sitelog-detail-page'
+import { SiteLogsListPage } from '@/features/bitacoras/sitelogs-list-page'
 import { CashRegisterPage } from '@/features/comercial/cash-register-page'
 import { InvoiceDetailPage } from '@/features/comercial/invoice-detail-page'
 import { InvoicesListPage } from '@/features/comercial/invoices-list-page'
@@ -36,6 +41,11 @@ export const router = createBrowserRouter([
           { path: 'presupuestos/:budgetId/oferta', element: <OfferCreatePage /> },
           { path: 'ofertas/:id', element: <OfferDetailPage /> },
           { path: 'proyectos/:id', element: <ProjectDetailPage /> },
+          { path: 'proyectos/:projectId/bitacoras', element: <SiteLogsListPage /> },
+          { path: 'proyectos/:projectId/bitacoras/nueva', element: <SiteLogCreatePage /> },
+          { path: 'bitacoras/:id', element: <SiteLogDetailPage /> },
+          { path: 'bitacoras/:siteLogId/planilla', element: <PayrollCreatePage /> },
+          { path: 'planillas/:id', element: <PayrollDetailPage /> },
         ],
       },
     ],
