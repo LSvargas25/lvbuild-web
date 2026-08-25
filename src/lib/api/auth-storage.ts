@@ -1,14 +1,6 @@
-import type { Role } from '@/types/roles'
+import type { LoginResponse } from '@/types/auth'
 
-export interface AuthSession {
-  accessToken: string
-  refreshToken: string
-  accessTokenExpiresAt: string
-  userId: number
-  name: string
-  email: string
-  roles: Role[]
-}
+export type AuthSession = LoginResponse
 
 const STORAGE_KEY = 'lv_auth_session'
 
