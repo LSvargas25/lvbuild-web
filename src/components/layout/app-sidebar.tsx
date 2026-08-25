@@ -20,6 +20,8 @@ const comercialItems = [
   { title: 'Facturación', url: '/comercial/facturas' },
 ]
 
+const proyectosItems = [{ title: 'Presupuestos', url: '/presupuestos' }]
+
 export function AppSidebar() {
   const location = useLocation()
 
@@ -45,6 +47,23 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     render={<Link to={item.url} />}
                     isActive={location.pathname === item.url}
+                  >
+                    {item.title}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Presupuesto → Proyecto</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {proyectosItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton
+                    render={<Link to={item.url} />}
+                    isActive={location.pathname.startsWith(item.url)}
                   >
                     {item.title}
                   </SidebarMenuButton>
