@@ -120,7 +120,9 @@ export function NewInvoicePage() {
               onValueChange={(value) => setPaymentType(value as InvoicePaymentType)}
             >
               <SelectTrigger className="w-40">
-                <SelectValue />
+                <SelectValue>
+                  {(value: InvoicePaymentType) => (value === 'Credito' ? 'Crédito' : 'Contado')}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Contado">Contado</SelectItem>
@@ -139,7 +141,14 @@ export function NewInvoicePage() {
                     onValueChange={(value) => updateLine(index, { productId: Number(value) })}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Elegí un producto" />
+                      <SelectValue placeholder="Elegí un producto">
+                        {(value: string | null) => {
+                          const product = products.find((p) => String(p.id) === value)
+                          return product
+                            ? `${product.name} — ₡${product.unitPrice.toLocaleString('es-CR')}/${product.unitOfMeasure}`
+                            : 'Elegí un producto'
+                        }}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {products.map((product) => (

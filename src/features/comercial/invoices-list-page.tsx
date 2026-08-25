@@ -47,7 +47,11 @@ export function InvoicesListPage() {
           onValueChange={(value) => setBranchId(Number(value))}
         >
           <SelectTrigger className="w-56">
-            <SelectValue placeholder="Sucursal" />
+            <SelectValue placeholder="Sucursal">
+              {(value: string | null) =>
+                branchesQuery.data?.find((b) => String(b.id) === value)?.name ?? 'Sucursal'
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {branchesQuery.data?.map((branch) => (

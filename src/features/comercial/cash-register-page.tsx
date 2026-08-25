@@ -178,7 +178,12 @@ export function CashRegisterPage() {
                 onValueChange={(value) => openForm.setValue('branchId', value as string)}
               >
                 <SelectTrigger id="branchId" className="w-full">
-                  <SelectValue placeholder="Elegí una sucursal" />
+                  <SelectValue placeholder="Elegí una sucursal">
+                    {(value: string | null) =>
+                      branchesQuery.data?.find((b) => String(b.id) === value)?.name ??
+                      'Elegí una sucursal'
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {branchesQuery.data?.map((branch) => (
