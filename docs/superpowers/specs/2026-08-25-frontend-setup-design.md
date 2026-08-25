@@ -67,9 +67,23 @@ decisiones tomadas antes de scaffoldear, para no tener que re-descubrirlas.
 
 ## Paleta y tipografía
 
-Se proponen 2-3 opciones pensadas para una constructora real (sin los grises/violetas
-default de shadcn) y se espera aprobación del usuario antes de aplicarlas a los
-tokens de Tailwind — ver conversación, no se fija de antemano en este documento.
+Se presentaron 3 opciones como mockup visual (artifact) sobre el layout real de
+sidebar + header + tabla. El usuario eligió **Opción C — "Obra"** (concreto +
+ladrillo):
+
+- Fondo `#EEEDE8`, texto `#2A2724`, acento (primary) `#A8461F` (ladrillo),
+  concreto `#55625A`, borde `#DEDBD3`. Sidebar oscuro (`#3A3733`) fijo en
+  ambos temas — decisión de diseño intencional, no varía con light/dark.
+- Tipografía: **Barlow Condensed** (600/700) en títulos — condensada, evoca
+  calcomanías de maquinaria/obra — y **Work Sans** (variable) en texto, con
+  **Roboto Mono** (500) para cifras/tablas. Fuentes self-hosted vía paquetes
+  `@fontsource` (mismo patrón que Geist, que reemplazan).
+- Radio de borde reducido a `0.375rem` (antes 0.625rem) para un look más
+  estructural/menos suave.
+- Tema oscuro definido con la misma lógica (ladrillo más claro `#D9784A`
+  sobre fondo `#1C1A17`), no es una simple inversión automática.
+- Tokens aplicados en `src/index.css` (`:root` / `.dark`), consumidos por
+  `@theme inline` de shadcn — sin `tailwind.config.js` clásico (Tailwind v4).
 
 ## Fuera de alcance de este setup
 
