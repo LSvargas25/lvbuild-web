@@ -12,6 +12,16 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, './src'),
     },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // React cambia poco entre deploys: en su propio chunk queda cacheado aunque cambie la app.
+        codeSplitting: {
+          groups: [{ name: 'react-vendor', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ }],
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
