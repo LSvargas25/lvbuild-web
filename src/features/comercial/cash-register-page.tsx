@@ -18,7 +18,7 @@ import {
   getOpenRegisterId,
   setOpenRegisterId,
 } from '@/features/comercial/cash-register-storage'
-import { catalogQueries, nameOf } from '@/lib/api/catalogs'
+import { catalogQueries, commercialBranches, nameOf } from '@/lib/api/catalogs'
 import { closeCashRegister, getCashRegister, openCashRegister } from '@/lib/api/commercial'
 import { getErrorMessage } from '@/lib/api/errors'
 import { formatDateTime } from '@/lib/dates'
@@ -179,7 +179,7 @@ export function CashRegisterPage() {
               render={({ field }) => (
                 <EntitySelect
                   id="branchId"
-                  items={branchesQuery.data}
+                  items={commercialBranches(branchesQuery.data)}
                   value={field.value}
                   onValueChange={field.onChange}
                   placeholder="Elige una sucursal"

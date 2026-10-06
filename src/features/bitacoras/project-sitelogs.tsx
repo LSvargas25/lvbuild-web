@@ -14,10 +14,15 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useAuth } from '@/features/auth/auth-context'
+import { getPayrollsByProject } from '@/lib/api/payroll'
 import { getSiteLogsByProject } from '@/lib/api/sitelogs'
 import { formatDate } from '@/lib/dates'
 import { formatCRC } from '@/lib/format'
-import { SITE_LOG_STATUS } from '@/lib/status-labels'
+import { PAYROLL_STATUS, SITE_LOG_STATUS } from '@/lib/status-labels'
+import type { Payroll } from '@/types/payroll'
+
+// Las planillas de un proyecto son una por semana: una página grande cubre el proyecto entero.
+const PAYROLLS_PAGE_SIZE = 100
 
 /** Bitácoras semanales de un proyecto (pestaña del detalle de proyecto). */
 export function ProjectSiteLogs({ projectId, canCreate }: { projectId: number; canCreate: boolean }) {
@@ -28,6 +33,15 @@ export function ProjectSiteLogs({ projectId, canCreate }: { projectId: number; c
     queryFn: () => getSiteLogsByProject(projectId, page),
     placeholderData: keepPreviousData,
   })
+  // SiteLog.totalPayroll solo se llena al pagar la planilla; el monto y el estado reales vienen
+  // de la planilla asociada a cada bitácora.
+  const payrollsQuery = useQuery({
+    queryKey: ['payrolls', projectId, 'by-site-log'],
+    queryFn: () => getPayrollsByProject(projectId, 1, PAYROLLS_PAGE_SIZE),
+  })
+  const payrollBySiteLog = new Map(
+    (payrollsQuery.data?.items ?? []).map((payroll) => [payroll.siteLogId, payroll]),
+  )
 
   return (
     <div className="flex flex-col gap-3">
@@ -65,8 +79,11 @@ export function ProjectSiteLogs({ projectId, canCreate }: { projectId: number; c
                       {SITE_LOG_STATUS[log.status].label}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {formatCRC(log.totalPayroll)}
+                  <TableCell className="text-right">
+                    <PayrollCell
+                      payroll={payrollBySiteLog.get(log.id)}
+                      loading={payrollsQuery.isPending}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -83,5 +100,21 @@ export function ProjectSiteLogs({ projectId, canCreate }: { projectId: number; c
         </>
       )}
     </div>
+  )
+}
+
+function PayrollCell({ payroll, loading }: { payroll?: Payroll; loading: boolean }) {
+  if (loading) return <span className="text-muted-foreground">…</span>
+  if (!payroll) return <span className="text-sm text-muted-foreground">Sin planilla</span>
+  return (
+    <Link
+      to={`/planillas/${payroll.id}`}
+      className="inline-flex items-center justify-end gap-2 hover:underline"
+    >
+      <span className="font-mono tabular-nums">{formatCRC(payroll.totalPayroll)}</span>
+      <Badge variant={PAYROLL_STATUS[payroll.status].variant}>
+        {PAYROLL_STATUS[payroll.status].label}
+      </Badge>
+    </Link>
   )
 }

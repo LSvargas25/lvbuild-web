@@ -1,8 +1,9 @@
 import axios from 'axios'
+import { translateApiMessage } from '@/lib/api/error-translations'
 
 /**
  * Formas de error que devuelve la API:
- * - ExceptionMiddleware / validadores: `{ statusCode, message }`
+ * - ExceptionMiddleware / validadores: `{ statusCode, code, message }` (mensaje en español)
  * - Model binding de ASP.NET Core (ProblemDetails): `{ title, errors: { campo: [mensajes] } }`
  */
 interface ApiErrorBody {
@@ -24,10 +25,10 @@ export function getErrorMessage(error: unknown, fallback: string): string {
   if (body && typeof body === 'object') {
     if (body.errors) {
       const messages = Object.values(body.errors).flat().filter(Boolean)
-      if (messages.length > 0) return messages.join(' ')
+      if (messages.length > 0) return messages.map(translateApiMessage).join(' ')
     }
-    if (body.message) return body.message
-    if (body.detail) return body.detail
+    if (body.message) return translateApiMessage(body.message)
+    if (body.detail) return translateApiMessage(body.detail)
   }
 
   if (error.response.status === 403) return 'No tienes permiso para realizar esta acción.'

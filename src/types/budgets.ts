@@ -49,6 +49,10 @@ export interface Budget {
   totalBudget: number
   createdByUserId: number
   chapters: BudgetChapterResponse[]
+  /** Oferta creada a partir del presupuesto (solo en `GET /budgets/{id}`). */
+  offerId?: number | null
+  /** Proyecto iniciado desde esa oferta (solo en `GET /budgets/{id}`). */
+  projectId?: number | null
 }
 
 export interface BudgetHistoryEntry {

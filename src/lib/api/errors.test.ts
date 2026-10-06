@@ -37,4 +37,35 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage(axiosError(500), 'No se pudo guardar.')).toBe('No se pudo guardar.')
     expect(getErrorMessage(new Error('boom'), 'No se pudo guardar.')).toBe('No se pudo guardar.')
   })
+
+  it('translates English messages that older backends or default validators send', () => {
+    expect(getErrorMessage(axiosError(404, { statusCode: 404, message: 'Project 123 not found.' }), 'x')).toBe(
+      'No se encontró el proyecto 123.',
+    )
+    expect(getErrorMessage(axiosError(401, { message: 'Invalid email or password.' }), 'x')).toBe(
+      'Correo o contraseña incorrectos.',
+    )
+    expect(
+      getErrorMessage(
+        axiosError(400, { message: "'Name' must not be empty. 'Quantity' must be greater than '0'." }),
+        'x',
+      ),
+    ).toBe("'Name' es obligatorio. 'Quantity' debe ser mayor que 0.")
+    expect(
+      getErrorMessage(
+        axiosError(400, {
+          title: 'One or more validation errors occurred.',
+          errors: { '$.quantity': ['The JSON value could not be converted to System.Decimal.'] },
+        }),
+        'x',
+      ),
+    ).toBe('Hay un dato con formato inválido.')
+  })
+
+  it('leaves Spanish messages and unknown entities readable', () => {
+    expect(getErrorMessage(axiosError(400, { code: 'validation', message: 'La caja está cerrada.' }), 'x')).toBe(
+      'La caja está cerrada.',
+    )
+    expect(getErrorMessage(axiosError(404, { message: 'Gadget 9 not found.' }), 'x')).toBe('No se encontró Gadget 9.')
+  })
 })

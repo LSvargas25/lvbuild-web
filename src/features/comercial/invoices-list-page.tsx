@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { catalogQueries, nameOf } from '@/lib/api/catalogs'
+import { catalogQueries, commercialBranches, nameOf } from '@/lib/api/catalogs'
 import { getInvoicesByBranch } from '@/lib/api/commercial'
 import { formatDate } from '@/lib/dates'
 import { formatCRC } from '@/lib/format'
@@ -27,7 +27,9 @@ export function InvoicesListPage() {
   const [selectedBranch, setSelectedBranch] = useState('')
   const [page, setPage] = useState(1)
 
-  const branchId = selectedBranch || String(branchesQuery.data?.[0]?.id ?? '')
+  // Solo las sucursales comerciales facturan; por defecto, la primera de ellas.
+  const branches = commercialBranches(branchesQuery.data)
+  const branchId = selectedBranch || String(branches[0]?.id ?? '')
 
   const invoicesQuery = useQuery({
     queryKey: ['invoices', branchId, page],
@@ -49,7 +51,7 @@ export function InvoicesListPage() {
         <EntitySelect
           id="invoices-branch"
           className="w-60"
-          items={branchesQuery.data}
+          items={branches}
           value={branchId}
           onValueChange={(value) => {
             setSelectedBranch(value)
