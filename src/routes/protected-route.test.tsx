@@ -79,7 +79,7 @@ describe('ProtectedRoute', () => {
   })
 
   it('logs out: revokes the refresh token and returns to login', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     signIn()
     let body: unknown
     server.use(
@@ -98,7 +98,7 @@ describe('ProtectedRoute', () => {
   })
 
   it('logs out locally even if the server fails', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     signIn()
     server.use(http.post(`${API}/auth/logout`, () => new HttpResponse(null, { status: 500 })))
     renderApp('/privada')
@@ -110,7 +110,7 @@ describe('ProtectedRoute', () => {
   })
 
   it('navigates to login with the router (no reload) when the session expires', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     signIn()
     server.use(
       http.get(`${API}/projects`, () => new HttpResponse(null, { status: 401 })),

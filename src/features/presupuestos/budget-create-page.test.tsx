@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -29,13 +29,15 @@ function renderPage() {
 }
 
 async function choose(user: ReturnType<typeof userEvent.setup>, label: string, option: string) {
+  // El select queda deshabilitado mientras carga su catálogo.
+  await waitFor(() => expect(screen.getByLabelText(label)).toBeEnabled())
   await user.click(screen.getByLabelText(label))
   await user.click(await screen.findByRole('option', { name: option }))
 }
 
 describe('BudgetCreatePage', () => {
   it('shows a message on every invalid field and does not submit', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     let submitted = false
     server.use(
       http.post(`${API}/budgets`, () => {
@@ -61,7 +63,7 @@ describe('BudgetCreatePage', () => {
   })
 
   it('sends chapters in order with their activities and opens the new budget', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     let body: Record<string, unknown> | undefined
     server.use(
       http.post(`${API}/budgets`, async ({ request }) => {
@@ -126,7 +128,7 @@ describe('BudgetCreatePage', () => {
   })
 
   it('shows the validation message returned by the API', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     server.use(
       http.post(`${API}/budgets`, () =>
         HttpResponse.json({ statusCode: 400, message: 'El cliente no existe.' }, { status: 400 }),

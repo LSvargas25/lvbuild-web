@@ -25,6 +25,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // Los tests de pantallas escriben formularios completos; en CI con cobertura superan 5 s.
+    testTimeout: 20_000,
     // Dates are computed in Costa Rica time; pin the runner's zone so "today" is deterministic.
     env: { TZ: 'UTC', VITE_API_BASE_URL: 'http://api.test/api' },
     coverage: {

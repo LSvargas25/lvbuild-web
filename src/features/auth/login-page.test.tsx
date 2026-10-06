@@ -22,7 +22,7 @@ function renderLogin(state?: { from: string }) {
 
 describe('LoginPage', () => {
   it('validates the fields before calling the API', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     let called = false
     server.use(
       http.post(`${API}/auth/login`, () => {
@@ -44,7 +44,7 @@ describe('LoginPage', () => {
 
   // La API real responde 403 con un mensaje en inglés.
   it('shows wrong credentials inline (in Spanish) and stays on the page', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     server.use(
       http.post(`${API}/auth/login`, () =>
         HttpResponse.json({ statusCode: 403, message: 'Invalid email or password.' }, { status: 403 }),
@@ -65,7 +65,7 @@ describe('LoginPage', () => {
     [403, 'This account is blocked. Contact an administrator.', 'Esta cuenta está bloqueada. Contacta a un administrador.'],
     [429, '', 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.'],
   ])('explains a %i response', async (status, message, expected) => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     server.use(http.post(`${API}/auth/login`, () => HttpResponse.json({ statusCode: status, message }, { status })))
     renderLogin()
 
@@ -77,7 +77,7 @@ describe('LoginPage', () => {
   })
 
   it('stores the session and goes to the home page', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     let body: unknown
     server.use(
       http.post(`${API}/auth/login`, async ({ request }) => {
@@ -97,7 +97,7 @@ describe('LoginPage', () => {
   })
 
   it('returns to the page that required the login', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     server.use(http.post(`${API}/auth/login`, () => HttpResponse.json(makeSession())))
     renderLogin({ from: '/proyectos/7' })
 
