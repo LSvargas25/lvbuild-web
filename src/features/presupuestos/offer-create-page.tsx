@@ -1,11 +1,15 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { FormField } from '@/components/form-field'
+import { fieldA11y } from '@/lib/a11y'
+import { PageHeader } from '@/components/page-header'
+import { ErrorState, LoadingState } from '@/components/page-state'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -13,226 +17,260 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  offerDefaults,
+  offerSchema,
+  toCreateOfferRequest,
+  type OfferFormValues,
+} from '@/features/presupuestos/offer-form-schema'
 import { getBudget } from '@/lib/api/budgets'
+import { getErrorMessage } from '@/lib/api/errors'
 import { createOffer } from '@/lib/api/offers'
+import { addDays, formatDate } from '@/lib/dates'
+import { formatCRC } from '@/lib/format'
+import { OFFER_TYPE_LABEL, PAYMENT_FREQUENCY_LABEL } from '@/lib/status-labels'
+import type { Budget } from '@/types/budgets'
 import type { OfferType, PaymentFrequency } from '@/types/offers'
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function inWeeksIso(weeks: number) {
-  const d = new Date()
-  d.setDate(d.getDate() + weeks * 7)
-  return d.toISOString().slice(0, 10)
-}
 
 export function OfferCreatePage() {
   const { budgetId } = useParams()
-  const navigate = useNavigate()
   const budgetQuery = useQuery({
     queryKey: ['budget', Number(budgetId)],
     queryFn: () => getBudget(Number(budgetId)),
   })
 
-  const totalWeeks =
-    budgetQuery.data?.chapters.reduce((sum, c) => sum + c.estimatedWeeks, 0) || 4
-
-  const [offerType, setOfferType] = useState<OfferType>('Turnkey')
-  const [workLocation, setWorkLocation] = useState('')
-  const [workScope, setWorkScope] = useState('')
-  const [validityDays, setValidityDays] = useState(30)
-  const [estimatedDurationWeeks, setEstimatedDurationWeeks] = useState(totalWeeks)
-  const [totalProjectPrice, setTotalProjectPrice] = useState(0)
-  const [paymentFrequency, setPaymentFrequency] = useState<PaymentFrequency>('Monthly')
-  const [paymentTerms, setPaymentTerms] = useState('')
-  const [warranties, setWarranties] = useState('')
-  const [exclusions, setExclusions] = useState('')
-  const [agreedPercentage, setAgreedPercentage] = useState(10)
-  const [percentageIncludes, setPercentageIncludes] = useState('')
-  const [percentageExcludes, setPercentageExcludes] = useState('')
-  const [percentageCalculationMethod, setPercentageCalculationMethod] = useState('')
-
-  if (budgetQuery.data && totalProjectPrice === 0) {
-    setTotalProjectPrice(budgetQuery.data.totalBudget)
+  if (budgetQuery.isPending) return <LoadingState />
+  if (budgetQuery.isError) {
+    return (
+      <ErrorState
+        error={budgetQuery.error}
+        fallback="No se encontró el presupuesto."
+        backTo={{ to: '/presupuestos', label: 'Volver a presupuestos' }}
+      />
+    )
+  }
+  if (budgetQuery.data.status !== 'Sent') {
+    return (
+      <ErrorState
+        error={null}
+        fallback="Solo se puede crear una oferta desde un presupuesto en estado Enviado."
+        backTo={{ to: `/presupuestos/${budgetId}`, label: 'Volver al presupuesto' }}
+      />
+    )
   }
 
+  // El formulario se monta cuando ya está el presupuesto: los valores iniciales salen de él.
+  return <OfferForm budget={budgetQuery.data} />
+}
+
+const TEXT_FIELDS = [
+  { name: 'workLocation', label: 'Ubicación de la obra', multiline: false },
+  { name: 'workScope', label: 'Alcance del trabajo', multiline: true },
+  { name: 'paymentTerms', label: 'Condiciones de pago', multiline: true },
+  { name: 'warranties', label: 'Garantías', multiline: true },
+  { name: 'exclusions', label: 'Exclusiones', multiline: true },
+] as const
+
+const PERCENTAGE_FIELDS = [
+  { name: 'percentageIncludes', label: 'El porcentaje incluye' },
+  { name: 'percentageExcludes', label: 'El porcentaje excluye' },
+  { name: 'percentageCalculationMethod', label: 'Método de cálculo del porcentaje' },
+] as const
+
+function OfferForm({ budget }: { budget: Budget }) {
+  const navigate = useNavigate()
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<OfferFormValues>({
+    resolver: zodResolver(offerSchema),
+    defaultValues: offerDefaults(budget),
+  })
+  const [offerType, startDate, weeks] = useWatch({
+    control,
+    name: ['offerType', 'estimatedStartDate', 'estimatedDurationWeeks'],
+  })
+
   const mutation = useMutation({
-    mutationFn: createOffer,
+    mutationFn: (values: OfferFormValues) => createOffer(toCreateOfferRequest(budget.id, values)),
     onSuccess: (offer) => {
       toast.success('Oferta creada como borrador')
       navigate(`/ofertas/${offer.id}`)
     },
-    onError: () => toast.error('No se pudo crear la oferta. Revisá los campos obligatorios.'),
+    onError: (error) => toast.error(getErrorMessage(error, 'No se pudo crear la oferta.')),
   })
 
-  if (budgetQuery.isLoading) return <p className="text-muted-foreground">Cargando…</p>
-
-  function handleSubmit() {
-    if (!workLocation || !workScope || !paymentTerms || !warranties || !exclusions) {
-      toast.error('Completá todos los campos obligatorios.')
-      return
-    }
-    if (offerType === 'Percentage' && (!percentageIncludes || !percentageExcludes || !percentageCalculationMethod)) {
-      toast.error('Completá los campos de porcentaje.')
-      return
-    }
-
-    mutation.mutate({
-      budgetId: Number(budgetId),
-      offerType,
-      issueDate: todayIso(),
-      validityDays,
-      workLocation,
-      workScope,
-      estimatedStartDate: inWeeksIso(1),
-      estimatedDurationWeeks,
-      paymentTerms,
-      warranties,
-      exclusions,
-      totalProjectPrice: offerType === 'Turnkey' ? totalProjectPrice : null,
-      agreedPercentage: offerType === 'Percentage' ? agreedPercentage : null,
-      percentageIncludes: offerType === 'Percentage' ? percentageIncludes : null,
-      percentageExcludes: offerType === 'Percentage' ? percentageExcludes : null,
-      percentageCalculationMethod: offerType === 'Percentage' ? percentageCalculationMethod : null,
-      paymentFrequency: offerType === 'Percentage' ? paymentFrequency : null,
-    })
-  }
+  const deliveryDate =
+    /^\d{4}-\d{2}-\d{2}$/.test(startDate) && weeks > 0 ? addDays(startDate, weeks * 7) : null
 
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
+    <div className="flex max-w-3xl flex-col gap-4">
+      <PageHeader
+        title="Nueva oferta"
+        description={`${budget.name} · presupuesto ${formatCRC(budget.totalBudget)}`}
+      />
       <Card>
-        <CardHeader>
-          <CardTitle>Nueva oferta — {budgetQuery.data?.name}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label>Tipo de oferta</Label>
-              <Select value={offerType} onValueChange={(v) => setOfferType(v as OfferType)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue>
-                    {(v: OfferType) => (v === 'Turnkey' ? 'Llave en mano' : 'Por porcentaje')}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Turnkey">Llave en mano</SelectItem>
-                  <SelectItem value="Percentage">Por porcentaje</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Vigencia (días)</Label>
-              <Input
-                type="number"
-                value={validityDays}
-                onChange={(e) => setValidityDays(Number(e.target.value))}
+        <CardContent>
+          <form
+            noValidate
+            onSubmit={handleSubmit((values) => mutation.mutate(values))}
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+          >
+            <FormField id="offer-type" label="Tipo de oferta">
+              <Controller
+                control={control}
+                name="offerType"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={(v) => field.onChange(v as OfferType)}>
+                    <SelectTrigger id="offer-type" className="w-full">
+                      <SelectValue>{(v: OfferType) => OFFER_TYPE_LABEL[v]}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Turnkey">{OFFER_TYPE_LABEL.Turnkey}</SelectItem>
+                      <SelectItem value="Percentage">{OFFER_TYPE_LABEL.Percentage}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               />
-            </div>
-            <div className="col-span-2 flex flex-col gap-2">
-              <Label>Ubicación de la obra</Label>
-              <Input value={workLocation} onChange={(e) => setWorkLocation(e.target.value)} />
-            </div>
-            <div className="col-span-2 flex flex-col gap-2">
-              <Label>Alcance del trabajo</Label>
-              <Input value={workScope} onChange={(e) => setWorkScope(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Duración estimada (semanas)</Label>
-              <Input
-                type="number"
-                value={estimatedDurationWeeks}
-                onChange={(e) => setEstimatedDurationWeeks(Number(e.target.value))}
-              />
-            </div>
+            </FormField>
+
             {offerType === 'Turnkey' ? (
-              <div className="flex flex-col gap-2">
-                <Label>Precio total del proyecto (₡)</Label>
+              <FormField
+                id="offer-price"
+                label="Precio total del proyecto (₡)"
+                error={errors.totalProjectPrice?.message}
+              >
                 <Input
                   type="number"
-                  value={totalProjectPrice}
-                  onChange={(e) => setTotalProjectPrice(Number(e.target.value))}
+                  min={0}
+                  step="0.01"
+                  inputMode="decimal"
+                  {...fieldA11y('offer-price', errors.totalProjectPrice?.message)}
+                  {...register('totalProjectPrice', { valueAsNumber: true })}
                 />
-              </div>
+              </FormField>
             ) : (
-              <div className="flex flex-col gap-2">
-                <Label>Porcentaje acordado (%)</Label>
+              <FormField
+                id="offer-percentage"
+                label="Porcentaje acordado (%)"
+                error={errors.agreedPercentage?.message}
+              >
                 <Input
                   type="number"
-                  value={agreedPercentage}
-                  onChange={(e) => setAgreedPercentage(Number(e.target.value))}
+                  min={0}
+                  max={100}
+                  step="0.1"
+                  inputMode="decimal"
+                  {...fieldA11y('offer-percentage', errors.agreedPercentage?.message)}
+                  {...register('agreedPercentage', { valueAsNumber: true })}
                 />
-              </div>
+              </FormField>
             )}
-            <div className="col-span-2 flex flex-col gap-2">
-              <Label>Condiciones de pago</Label>
-              <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
-            </div>
-            <div className="col-span-2 flex flex-col gap-2">
-              <Label>Garantías</Label>
-              <Input value={warranties} onChange={(e) => setWarranties(e.target.value)} />
-            </div>
-            <div className="col-span-2 flex flex-col gap-2">
-              <Label>Exclusiones</Label>
-              <Input value={exclusions} onChange={(e) => setExclusions(e.target.value)} />
-            </div>
+
+            <FormField id="offer-issue-date" label="Fecha de emisión" error={errors.issueDate?.message}>
+              <Input
+                type="date"
+                {...fieldA11y('offer-issue-date', errors.issueDate?.message)}
+                {...register('issueDate')}
+              />
+            </FormField>
+            <FormField id="offer-validity" label="Vigencia (días)" error={errors.validityDays?.message}>
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                {...fieldA11y('offer-validity', errors.validityDays?.message)}
+                {...register('validityDays', { valueAsNumber: true })}
+              />
+            </FormField>
+            <FormField
+              id="offer-start"
+              label="Inicio estimado"
+              error={errors.estimatedStartDate?.message}
+            >
+              <Input
+                type="date"
+                {...fieldA11y('offer-start', errors.estimatedStartDate?.message)}
+                {...register('estimatedStartDate')}
+              />
+            </FormField>
+            <FormField
+              id="offer-weeks"
+              label="Duración estimada (semanas)"
+              error={errors.estimatedDurationWeeks?.message}
+              hint={deliveryDate ? `Entrega estimada: ${formatDate(deliveryDate)}` : undefined}
+            >
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                {...fieldA11y('offer-weeks', errors.estimatedDurationWeeks?.message)}
+                {...register('estimatedDurationWeeks', { valueAsNumber: true })}
+              />
+            </FormField>
+
+            {TEXT_FIELDS.map(({ name, label, multiline }) => {
+              const id = `offer-${name}`
+              const error = errors[name]?.message
+              return (
+                <FormField key={name} id={id} label={label} error={error} className="sm:col-span-2">
+                  {multiline ? (
+                    <Textarea rows={2} {...fieldA11y(id, error)} {...register(name)} />
+                  ) : (
+                    <Input {...fieldA11y(id, error)} {...register(name)} />
+                  )}
+                </FormField>
+              )
+            })}
 
             {offerType === 'Percentage' && (
               <>
-                <div className="flex flex-col gap-2">
-                  <Label>Frecuencia de pago</Label>
-                  <Select
-                    value={paymentFrequency}
-                    onValueChange={(v) => setPaymentFrequency(v as PaymentFrequency)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue>
-                        {(v: PaymentFrequency) =>
-                          ({
-                            Weekly: 'Semanal',
-                            Biweekly: 'Quincenal',
-                            Monthly: 'Mensual',
-                            ProgressBased: 'Por avance',
-                          })[v]
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Weekly">Semanal</SelectItem>
-                      <SelectItem value="Biweekly">Quincenal</SelectItem>
-                      <SelectItem value="Monthly">Mensual</SelectItem>
-                      <SelectItem value="ProgressBased">Por avance</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-2 flex flex-col gap-2">
-                  <Label>El porcentaje incluye</Label>
-                  <Input
-                    value={percentageIncludes}
-                    onChange={(e) => setPercentageIncludes(e.target.value)}
+                <FormField id="offer-frequency" label="Frecuencia de pago">
+                  <Controller
+                    control={control}
+                    name="paymentFrequency"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={(v) => field.onChange(v as PaymentFrequency)}
+                      >
+                        <SelectTrigger id="offer-frequency" className="w-full">
+                          <SelectValue>{(v: PaymentFrequency) => PAYMENT_FREQUENCY_LABEL[v]}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(PAYMENT_FREQUENCY_LABEL) as PaymentFrequency[]).map((f) => (
+                            <SelectItem key={f} value={f}>
+                              {PAYMENT_FREQUENCY_LABEL[f]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   />
-                </div>
-                <div className="col-span-2 flex flex-col gap-2">
-                  <Label>El porcentaje excluye</Label>
-                  <Input
-                    value={percentageExcludes}
-                    onChange={(e) => setPercentageExcludes(e.target.value)}
-                  />
-                </div>
-                <div className="col-span-2 flex flex-col gap-2">
-                  <Label>Método de cálculo del porcentaje</Label>
-                  <Input
-                    value={percentageCalculationMethod}
-                    onChange={(e) => setPercentageCalculationMethod(e.target.value)}
-                  />
-                </div>
+                </FormField>
+                {PERCENTAGE_FIELDS.map(({ name, label }) => {
+                  const id = `offer-${name}`
+                  const error = errors[name]?.message
+                  return (
+                    <FormField key={name} id={id} label={label} error={error} className="sm:col-span-2">
+                      <Textarea rows={2} {...fieldA11y(id, error)} {...register(name)} />
+                    </FormField>
+                  )
+                })}
               </>
             )}
-          </div>
 
-          <Button onClick={handleSubmit} disabled={mutation.isPending}>
-            {mutation.isPending ? 'Creando…' : 'Crear oferta (borrador)'}
-          </Button>
+            <div className="sm:col-span-2">
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending ? 'Creando…' : 'Crear oferta (borrador)'}
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>

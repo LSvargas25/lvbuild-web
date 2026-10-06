@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/page-header'
+import { ErrorState, LoadingState } from '@/components/page-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -13,69 +15,78 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useAuth } from '@/features/auth/auth-context'
+import { catalogQueries, nameOf } from '@/lib/api/catalogs'
+import { getErrorMessage } from '@/lib/api/errors'
 import { getPayroll, markPayrollPaid } from '@/lib/api/payroll'
-import { getWorkers } from '@/lib/api/sitelogs'
+import { formatDate, formatDateTime } from '@/lib/dates'
+import { formatCRC } from '@/lib/format'
+import { PAYROLL_PAYMENT_METHOD_LABEL, PAYROLL_STATUS } from '@/lib/status-labels'
+import { MANAGEMENT_ROLES } from '@/types/roles'
 
 export function PayrollDetailPage() {
   const { id } = useParams()
   const payrollId = Number(id)
-  const { session } = useAuth()
+  const { hasRole } = useAuth()
   const queryClient = useQueryClient()
 
   const payrollQuery = useQuery({
     queryKey: ['payroll', payrollId],
     queryFn: () => getPayroll(payrollId),
   })
-  const workersQuery = useQuery({ queryKey: ['workers'], queryFn: getWorkers })
+  const workersQuery = useQuery(catalogQueries.workers)
 
   const markPaidMutation = useMutation({
     mutationFn: () => markPayrollPaid(payrollId),
     onSuccess: () => {
       toast.success('Planilla marcada como pagada')
       queryClient.invalidateQueries({ queryKey: ['payroll', payrollId] })
+      queryClient.invalidateQueries({ queryKey: ['payrolls'] })
     },
-    onError: () => toast.error('No se pudo marcar como pagada.'),
+    onError: (error) => toast.error(getErrorMessage(error, 'No se pudo marcar como pagada.')),
   })
 
-  if (payrollQuery.isLoading) return <p className="text-muted-foreground">Cargando…</p>
-  const payroll = payrollQuery.data
-  if (!payroll) return <p className="text-destructive">No se encontró la planilla.</p>
-
-  const canDecide = session?.roles.some((r) => r === 'GeneralManager' || r === 'OperationsDirector')
-
-  function workerName(workerId: number) {
-    return workersQuery.data?.find((w) => w.id === workerId)?.name ?? `#${workerId}`
+  if (payrollQuery.isPending) return <LoadingState />
+  if (payrollQuery.isError) {
+    return <ErrorState error={payrollQuery.error} fallback="No se encontró la planilla." />
   }
 
+  const payroll = payrollQuery.data
+  const status = PAYROLL_STATUS[payroll.status]
+
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
+    <div className="flex max-w-3xl flex-col gap-4">
+      <PageHeader
+        title={`Planilla #${payroll.id}`}
+        description={`Semana del ${formatDate(payroll.weekStart)} al ${formatDate(payroll.weekEnd)}${
+          payroll.paidAt ? ` · pagada el ${formatDateTime(payroll.paidAt)}` : ''
+        }`}
+        actions={<Badge variant={status.variant}>{status.label}</Badge>}
+      />
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Planilla #{payroll.id}</CardTitle>
-          <Badge variant={payroll.status === 'Paid' ? 'default' : 'secondary'}>
-            {payroll.status === 'Paid' ? 'Pagada' : 'Pendiente'}
-          </Badge>
-        </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Trabajador</TableHead>
                 <TableHead className="text-right">Horas</TableHead>
-                <TableHead className="text-right">Tarifa/h</TableHead>
+                <TableHead className="text-right">Tarifa por hora</TableHead>
+                <TableHead>Forma de pago</TableHead>
                 <TableHead className="text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {payroll.details.map((d) => (
                 <TableRow key={d.id}>
-                  <TableCell>{workerName(d.workerId)}</TableCell>
+                  <TableCell>{nameOf(workersQuery.data, d.workerId)}</TableCell>
                   <TableCell className="text-right tabular-nums">{d.hoursWorked}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    ₡{d.hourlyRate.toLocaleString('es-CR')}
+                  <TableCell className="text-right font-mono tabular-nums">
+                    {formatCRC(d.hourlyRate)}
+                  </TableCell>
+                  <TableCell>
+                    {d.payments.map((p) => PAYROLL_PAYMENT_METHOD_LABEL[p.paymentMethod]).join(', ')}
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
-                    ₡{d.finalAmountToPay.toLocaleString('es-CR')}
+                    {formatCRC(d.finalAmountToPay)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -84,20 +95,22 @@ export function PayrollDetailPage() {
 
           <div className="flex justify-between border-t pt-3 font-semibold">
             <span>Total planilla</span>
-            <span className="font-mono tabular-nums">
-              ₡{payroll.totalPayroll.toLocaleString('es-CR')}
-            </span>
+            <span className="font-mono tabular-nums">{formatCRC(payroll.totalPayroll)}</span>
           </div>
 
-          {payroll.status === 'Pending' && canDecide && (
+          <div className="flex flex-wrap gap-2">
+            {payroll.status === 'Pending' && hasRole(...MANAGEMENT_ROLES) && (
+              <Button onClick={() => markPaidMutation.mutate()} disabled={markPaidMutation.isPending}>
+                Marcar como pagada
+              </Button>
+            )}
             <Button
-              onClick={() => markPaidMutation.mutate()}
-              disabled={markPaidMutation.isPending}
-              className="w-fit"
+              variant="outline"
+              render={<Link to={`/proyectos/${payroll.projectId}?tab=planillas`} />}
             >
-              Marcar como pagada
+              Volver al proyecto
             </Button>
-          )}
+          </div>
         </CardContent>
       </Card>
     </div>

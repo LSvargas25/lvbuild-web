@@ -1,17 +1,15 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus } from 'lucide-react'
+import { Controller, FormProvider, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { EntitySelect } from '@/components/entity-select'
+import { FormField } from '@/components/form-field'
+import { PageHeader } from '@/components/page-header'
+import { ErrorState, LoadingState } from '@/components/page-state'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -20,42 +18,37 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { getOpenRegisterId } from '@/features/comercial/cash-register-storage'
-import { createInvoice, getCashRegister, getProducts } from '@/lib/api/commercial'
-import type { InvoicePaymentType } from '@/types/commercial'
-
-interface DraftLine {
-  productId: number | null
-  quantity: number
-}
+import {
+  emptyLine,
+  invoiceSchema,
+  invoiceTotals,
+  toCreateInvoiceRequest,
+  type InvoiceFormValues,
+} from '@/features/comercial/invoice-form'
+import { InvoiceLineFields } from '@/features/comercial/invoice-line-fields'
+import { catalogQueries, nameOf } from '@/lib/api/catalogs'
+import { createInvoice, getCashRegister } from '@/lib/api/commercial'
+import { getErrorMessage } from '@/lib/api/errors'
+import { formatCRC } from '@/lib/format'
+import type { CashRegister, InvoicePaymentType } from '@/types/commercial'
 
 export function NewInvoicePage() {
-  const navigate = useNavigate()
   const registerId = getOpenRegisterId()
-  const [lines, setLines] = useState<DraftLine[]>([{ productId: null, quantity: 1 }])
-  const [paymentType, setPaymentType] = useState<InvoicePaymentType>('Contado')
-
   const registerQuery = useQuery({
     queryKey: ['cash-register', registerId],
     queryFn: () => getCashRegister(registerId!),
     enabled: registerId !== null,
   })
-  const productsQuery = useQuery({ queryKey: ['products'], queryFn: getProducts })
 
-  const mutation = useMutation({
-    mutationFn: createInvoice,
-    onSuccess: (invoice) => {
-      toast.success('Factura creada como borrador')
-      navigate(`/comercial/facturas/${invoice.id}`)
-    },
-    onError: () => toast.error('No se pudo crear la factura. Revisá el stock disponible.'),
-  })
+  if (registerId !== null && registerQuery.isPending) return <LoadingState />
+  if (registerQuery.isError) return <ErrorState error={registerQuery.error} />
 
-  if (registerId === null) {
+  if (registerId === null || registerQuery.data?.status !== 'Open') {
     return (
       <Card className="max-w-md">
         <CardHeader>
           <CardTitle>No hay caja abierta</CardTitle>
-          <CardDescription>Abrí una caja antes de facturar.</CardDescription>
+          <CardDescription>Abre una caja antes de facturar.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button render={<Link to="/comercial/caja" />}>Ir a caja</Button>
@@ -64,144 +57,142 @@ export function NewInvoicePage() {
     )
   }
 
-  const products = productsQuery.data ?? []
+  return <InvoiceForm cashRegister={registerQuery.data} />
+}
 
-  function priceOf(productId: number | null) {
-    return products.find((p) => p.id === productId)?.unitPrice ?? 0
-  }
+function InvoiceForm({ cashRegister }: { cashRegister: CashRegister }) {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const productsQuery = useQuery(catalogQueries.products)
+  const customersQuery = useQuery(catalogQueries.customers)
+  const branchesQuery = useQuery(catalogQueries.branches)
+  // Solo productos validados y activos se pueden facturar.
+  const products = productsQuery.data?.filter((p) => p.status === 'Validated' && p.activeStatus)
 
-  const subtotal = lines.reduce((sum, line) => sum + priceOf(line.productId) * line.quantity, 0)
-  const tax = subtotal * 0.13
-  const total = subtotal + tax
+  const form = useForm<InvoiceFormValues>({
+    resolver: zodResolver(invoiceSchema),
+    defaultValues: { customerId: '', paymentType: 'Contado', lines: [emptyLine()] },
+  })
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = form
+  const lines = useFieldArray({ control, name: 'lines' })
+  const watchedLines = useWatch({ control, name: 'lines' })
+  const { subtotal, tax, total } = invoiceTotals(watchedLines ?? [], products)
 
-  function updateLine(index: number, patch: Partial<DraftLine>) {
-    setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)))
-  }
-
-  function addLine() {
-    setLines((prev) => [...prev, { productId: null, quantity: 1 }])
-  }
-
-  function removeLine(index: number) {
-    setLines((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  function handleSubmit() {
-    const details = lines
-      .filter((line): line is { productId: number; quantity: number } => line.productId !== null)
-      .map((line) => ({ productId: line.productId, quantity: line.quantity }))
-
-    if (details.length === 0) {
-      toast.error('Agregá al menos un producto.')
-      return
-    }
-
-    mutation.mutate({
-      branchId: registerQuery.data!.branchId,
-      cashRegisterId: registerId!,
-      customerId: null,
-      paymentType,
-      details,
-    })
-  }
+  const mutation = useMutation({
+    mutationFn: (values: InvoiceFormValues) =>
+      createInvoice(toCreateInvoiceRequest(values, cashRegister.branchId, cashRegister.id)),
+    onSuccess: (invoice) => {
+      toast.success('Factura creada como borrador')
+      queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      navigate(`/comercial/facturas/${invoice.id}`)
+    },
+    onError: (error) => toast.error(getErrorMessage(error, 'No se pudo crear la factura.')),
+  })
 
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
+    <div className="flex max-w-3xl flex-col gap-4">
+      <PageHeader
+        title="Nueva factura"
+        description={`Caja #${cashRegister.id} · ${nameOf(branchesQuery.data, cashRegister.branchId)}`}
+      />
       <Card>
-        <CardHeader>
-          <CardTitle>Nueva factura</CardTitle>
-          <CardDescription>Consumidor final · Sucursal #{registerQuery.data?.branchId}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label>Tipo de pago</Label>
-            <Select
-              value={paymentType}
-              onValueChange={(value) => setPaymentType(value as InvoicePaymentType)}
+        <CardContent>
+          <FormProvider {...form}>
+            <form
+              noValidate
+              onSubmit={handleSubmit((values) => mutation.mutate(values))}
+              className="flex flex-col gap-4"
             >
-              <SelectTrigger className="w-40">
-                <SelectValue>
-                  {(value: InvoicePaymentType) => (value === 'Credito' ? 'Crédito' : 'Contado')}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Contado">Contado</SelectItem>
-                <SelectItem value="Credito">Crédito</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField id="invoice-customer" label="Cliente" hint="Vacío = consumidor final">
+                  <Controller
+                    control={control}
+                    name="customerId"
+                    render={({ field }) => (
+                      <EntitySelect
+                        id="invoice-customer"
+                        items={customersQuery.data}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="Consumidor final"
+                      />
+                    )}
+                  />
+                </FormField>
+                <FormField id="invoice-payment-type" label="Tipo de pago">
+                  <Controller
+                    control={control}
+                    name="paymentType"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={(v) => field.onChange(v as InvoicePaymentType)}
+                      >
+                        <SelectTrigger id="invoice-payment-type" className="w-full">
+                          <SelectValue>
+                            {(v: InvoicePaymentType) => (v === 'Credito' ? 'Crédito' : 'Contado')}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Contado">Contado</SelectItem>
+                          <SelectItem value="Credito">Crédito</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </FormField>
+              </div>
 
-          <div className="flex flex-col gap-3">
-            <Label>Productos</Label>
-            {lines.map((line, index) => (
-              <div key={index} className="flex items-end gap-2">
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <Select
-                    value={line.productId ? String(line.productId) : undefined}
-                    onValueChange={(value) => updateLine(index, { productId: Number(value) })}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Elegí un producto">
-                        {(value: string | null) => {
-                          const product = products.find((p) => String(p.id) === value)
-                          return product
-                            ? `${product.name} — ₡${product.unitPrice.toLocaleString('es-CR')}/${product.unitOfMeasure}`
-                            : 'Elegí un producto'
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={String(product.id)}>
-                          {product.name} — ₡{product.unitPrice.toLocaleString('es-CR')}/
-                          {product.unitOfMeasure}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Input
-                  type="number"
-                  min={0.01}
-                  step="0.01"
-                  className="w-24"
-                  value={line.quantity}
-                  onChange={(e) => updateLine(index, { quantity: Number(e.target.value) })}
-                />
+              <fieldset className="flex flex-col gap-3">
+                <legend className="mb-2 text-sm font-medium">Productos</legend>
+                {lines.fields.map((field, index) => (
+                  <InvoiceLineFields
+                    key={field.id}
+                    index={index}
+                    products={products}
+                    canRemove={lines.fields.length > 1}
+                    onRemove={() => lines.remove(index)}
+                  />
+                ))}
+                {errors.lines?.root?.message && (
+                  <p className="text-sm text-destructive">{errors.lines.root.message}</p>
+                )}
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={() => removeLine(index)}
-                  disabled={lines.length === 1}
+                  className="w-fit"
+                  onClick={() => lines.append(emptyLine())}
                 >
-                  Quitar
+                  <Plus aria-hidden="true" />
+                  Agregar producto
                 </Button>
-              </div>
-            ))}
-            <Button type="button" variant="outline" size="sm" className="w-fit" onClick={addLine}>
-              + Agregar producto
-            </Button>
-          </div>
+              </fieldset>
 
-          <div className="flex flex-col gap-1 border-t pt-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-mono tabular-nums">₡{subtotal.toLocaleString('es-CR')}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">IVA (13%)</span>
-              <span className="font-mono tabular-nums">₡{tax.toLocaleString('es-CR')}</span>
-            </div>
-            <div className="flex justify-between font-semibold">
-              <span>Total estimado</span>
-              <span className="font-mono tabular-nums">₡{total.toLocaleString('es-CR')}</span>
-            </div>
-          </div>
+              <dl className="flex flex-col gap-1 border-t pt-3 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Subtotal</dt>
+                  <dd className="font-mono tabular-nums">{formatCRC(subtotal)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">IVA (13 %)</dt>
+                  <dd className="font-mono tabular-nums">{formatCRC(tax)}</dd>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <dt>Total estimado</dt>
+                  <dd className="font-mono tabular-nums">{formatCRC(total)}</dd>
+                </div>
+              </dl>
 
-          <Button onClick={handleSubmit} disabled={mutation.isPending}>
-            {mutation.isPending ? 'Creando…' : 'Crear factura (borrador)'}
-          </Button>
+              <Button type="submit" disabled={mutation.isPending} className="sm:w-fit">
+                {mutation.isPending ? 'Creando…' : 'Crear factura (borrador)'}
+              </Button>
+            </form>
+          </FormProvider>
         </CardContent>
       </Card>
     </div>
