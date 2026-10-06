@@ -19,10 +19,11 @@ cash registers and invoicing. It talks to the [LvBuild API](https://github.com/L
 
 ## Live demo
 
-- App: `https://<your-project>.pages.dev` *(placeholder until deployed)*
-- API / Swagger: see the [LvBuild README](https://github.com/LSvargas25/LvBuild#live-demo)
+- **App:** https://lvbuild-web.onrender.com
+- **API:** https://lvbuild-api.onrender.com ([Swagger](https://lvbuild-api.onrender.com/swagger), [health](https://lvbuild-api.onrender.com/health/ready)), source in [LvBuild](https://github.com/LSvargas25/LvBuild)
 
-The API runs on Render's free plan: the first request after a while can take 30-60 seconds.
+Both run on Render's free plan and sleep when idle: the first request after a while can take
+30-60 seconds while the API wakes up.
 
 ### Demo credentials
 
@@ -54,7 +55,7 @@ Every demo user's password is **`LvBuild#2026`**.
 | HTTP           | axios with a single-flight token refresh                                |
 | Forms          | react-hook-form + zod                                                   |
 | Tests          | Vitest, Testing Library, MSW                                            |
-| Tooling        | Vite 8 (Rolldown), oxlint, GitHub Actions, Cloudflare Pages             |
+| Tooling        | Vite 8 (Rolldown), oxlint, GitHub Actions, Render (static site)         |
 
 ## Folder structure
 
@@ -133,9 +134,19 @@ they exercise the axios client, React Query and the forms end to end:
 - Pure logic: budget state × role matrix, dates, currency, offer / site log / invoice forms,
   project metrics, API error parsing.
 
-## Deployment (Cloudflare Pages)
+## Deployment (Render static site)
 
-1. Create a Pages project from this repository: build command `npm run build`, output `dist`.
-2. Set `VITE_API_BASE_URL` to the API URL including `/api` (it is embedded at build time).
-3. `public/_redirects` sends every route to `index.html`, so deep links work.
-4. Add the Pages URL to the API's `Cors__AllowedOrigins__0`.
+The live app is a Render **Static Site** built from `main`:
+
+| Setting               | Value                                         |
+|-----------------------|-----------------------------------------------|
+| Build command         | `npm ci && npm run build`                     |
+| Publish directory     | `dist`                                        |
+| Environment variable  | `VITE_API_BASE_URL=https://lvbuild-api.onrender.com/api` |
+| Rewrite rule          | `/*` → `/index.html` (SPA deep links)         |
+
+`VITE_API_BASE_URL` is embedded at build time, so changing it needs a new deploy. The app's URL
+must be in the API's `Cors__AllowedOrigins__0`.
+
+`public/_redirects` holds the same SPA fallback for hosts that read it (Netlify, Cloudflare
+Pages); Render uses the rewrite rule instead.
