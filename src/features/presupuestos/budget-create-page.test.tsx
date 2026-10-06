@@ -14,8 +14,8 @@ beforeEach(() => {
     http.get(`${API}/customers`, () =>
       HttpResponse.json(page([{ id: 3, name: 'Inversiones Solano', city: null, phoneNumber: null, email: null }])),
     ),
-    http.get(`${API}/branches`, () =>
-      HttpResponse.json(page([{ id: 1, name: 'Sucursal Central', city: 'San José', province: 'San José', status: 'Active', branchType: 'Office' }])),
+    http.get(`${API}/branches/options`, () =>
+      HttpResponse.json([{ id: 1, name: 'Sucursal Central', branchType: 'Office' }]),
     ),
   )
 })

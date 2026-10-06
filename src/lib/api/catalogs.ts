@@ -1,5 +1,6 @@
+import { apiClient } from '@/lib/api/client'
 import { getAllPages } from '@/lib/api/paging'
-import type { Branch, Product } from '@/types/commercial'
+import type { BranchOption, Product } from '@/types/commercial'
 import type { Customer } from '@/types/customers'
 import type { Worker } from '@/types/sitelogs'
 
@@ -8,7 +9,11 @@ import type { Worker } from '@/types/sitelogs'
  * pantallas reutilicen la misma copia.
  */
 export const catalogQueries = {
-  branches: { queryKey: ['branches'], queryFn: () => getAllPages<Branch>('/branches') },
+  // Sucursales activas, para todos los roles (el listado de /branches es solo de gerencia).
+  branches: {
+    queryKey: ['branches'],
+    queryFn: () => apiClient.get<BranchOption[]>('/branches/options').then((res) => res.data),
+  },
   customers: { queryKey: ['customers'], queryFn: () => getAllPages<Customer>('/customers') },
   workers: { queryKey: ['workers'], queryFn: () => getAllPages<Worker>('/workers') },
   products: { queryKey: ['products'], queryFn: () => getAllPages<Product>('/products') },
