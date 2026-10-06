@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
-import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { EntitySelect } from '@/components/entity-select'
@@ -10,6 +9,7 @@ import { FormField } from '@/components/form-field'
 import { fieldA11y } from '@/lib/a11y'
 import { LoadingState } from '@/components/page-state'
 import { Badge } from '@/components/ui/badge'
+import { ButtonLink } from '@/components/button-link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -132,9 +132,9 @@ export function CashRegisterPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <Button className="w-fit" render={<Link to="/comercial/facturas/nueva" />}>
+          <ButtonLink className="w-fit" to="/comercial/facturas/nueva">
             Ir a facturar
-          </Button>
+          </ButtonLink>
           <form
             noValidate
             onSubmit={closeForm.handleSubmit((values) => closeMutation.mutate(values))}

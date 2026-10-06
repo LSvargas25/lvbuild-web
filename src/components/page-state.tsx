@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
+import { ButtonLink } from '@/components/button-link'
 import { getErrorMessage } from '@/lib/api/errors'
 
 export function LoadingState({ label = 'Cargando…' }: { label?: string }) {
@@ -21,9 +20,9 @@ export function ErrorState({ error, fallback = 'No se pudo cargar la informació
     <div role="alert" className="flex flex-col items-start gap-3">
       <p className="text-destructive">{getErrorMessage(error, fallback)}</p>
       {backTo && (
-        <Button variant="outline" render={<Link to={backTo.to} />}>
+        <ButtonLink variant="outline" to={backTo.to}>
           {backTo.label}
-        </Button>
+        </ButtonLink>
       )}
     </div>
   )

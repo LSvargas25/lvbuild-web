@@ -1,5 +1,6 @@
-import { Link, Navigate, isRouteErrorResponse, useParams, useRouteError } from 'react-router-dom'
+import { Navigate, isRouteErrorResponse, useParams, useRouteError } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { ButtonLink } from '@/components/button-link'
 
 function ErrorLayout({ code, title, message }: { code: string; title: string; message: string }) {
   return (
@@ -7,7 +8,7 @@ function ErrorLayout({ code, title, message }: { code: string; title: string; me
       <p className="font-mono text-sm text-muted-foreground">{code}</p>
       <h1 className="font-heading text-3xl font-semibold tracking-wide">{title}</h1>
       <p className="max-w-md text-muted-foreground">{message}</p>
-      <Button render={<Link to="/" />}>Ir al inicio</Button>
+      <ButtonLink to="/">Ir al inicio</ButtonLink>
     </main>
   )
 }
@@ -45,9 +46,9 @@ export function RouteErrorPage() {
       </p>
       <div className="flex flex-wrap justify-center gap-2">
         <Button onClick={() => window.location.reload()}>Recargar</Button>
-        <Button variant="outline" render={<Link to="/" />}>
+        <ButtonLink variant="outline" to="/">
           Ir al inicio
-        </Button>
+        </ButtonLink>
       </div>
     </main>
   )

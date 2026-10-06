@@ -5,7 +5,7 @@ import { ErrorState, LoadingState } from '@/components/page-state'
 import { Pagination } from '@/components/pagination'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { ButtonLink } from '@/components/button-link'
 import {
   Select,
   SelectContent,
@@ -49,7 +49,7 @@ export function BudgetsListPage() {
         title="Presupuestos"
         actions={
           hasRole('ProjectAdmin') && (
-            <Button render={<Link to="/presupuestos/nuevo" />}>Nuevo presupuesto</Button>
+            <ButtonLink to="/presupuestos/nuevo">Nuevo presupuesto</ButtonLink>
           )
         }
       />

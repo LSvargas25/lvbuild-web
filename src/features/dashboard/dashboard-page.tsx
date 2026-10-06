@@ -9,9 +9,9 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { ButtonLink } from '@/components/button-link'
 import { PageHeader } from '@/components/page-header'
 import { ErrorState, LoadingState } from '@/components/page-state'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/features/auth/auth-context'
 import { STATUS_LABEL } from '@/features/presupuestos/budget-status'
@@ -68,10 +68,10 @@ export function DashboardPage() {
 
       <nav aria-label="Accesos rápidos" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {links.map(({ to, label, icon: Icon }) => (
-          <Button key={to} variant="outline" className="h-auto justify-start gap-2 py-3" render={<Link to={to} />}>
+          <ButtonLink key={to} variant="outline" className="h-auto justify-start gap-2 py-3" to={to}>
             <Icon aria-hidden="true" />
             {label}
-          </Button>
+          </ButtonLink>
         ))}
       </nav>
 

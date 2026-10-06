@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/page-header'
 import { ErrorState, LoadingState } from '@/components/page-state'
 import { Pagination } from '@/components/pagination'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { ButtonLink } from '@/components/button-link'
 import {
   Table,
   TableBody,
@@ -40,7 +40,7 @@ export function InvoicesListPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Facturación"
-        actions={<Button render={<Link to="/comercial/facturas/nueva" />}>Nueva factura</Button>}
+        actions={<ButtonLink to="/comercial/facturas/nueva">Nueva factura</ButtonLink>}
       />
       <div className="flex flex-wrap items-center gap-2">
         <label htmlFor="invoices-branch" className="text-sm text-muted-foreground">

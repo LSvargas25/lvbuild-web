@@ -1,10 +1,10 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { ButtonLink } from '@/components/button-link'
 import { Link } from 'react-router-dom'
 import { ErrorState, LoadingState } from '@/components/page-state'
 import { Pagination } from '@/components/pagination'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -32,9 +32,9 @@ export function ProjectSiteLogs({ projectId, canCreate }: { projectId: number; c
   return (
     <div className="flex flex-col gap-3">
       {canCreate && hasRole('ProjectAdmin') && (
-        <Button className="w-fit" render={<Link to={`/proyectos/${projectId}/bitacoras/nueva`} />}>
+        <ButtonLink className="w-fit" to={`/proyectos/${projectId}/bitacoras/nueva`}>
           Nueva bitácora
-        </Button>
+        </ButtonLink>
       )}
       {siteLogsQuery.isPending ? (
         <LoadingState />

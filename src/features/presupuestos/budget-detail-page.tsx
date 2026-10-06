@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FormField } from '@/components/form-field'
 import { PageHeader } from '@/components/page-header'
 import { ErrorState, LoadingState } from '@/components/page-state'
 import { Badge } from '@/components/ui/badge'
+import { ButtonLink } from '@/components/button-link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -170,9 +171,9 @@ export function BudgetDetailPage() {
                   </Button>
                 ))}
                 {canCreateOffer(budget.status, roles) && (
-                  <Button variant="outline" render={<Link to={`/presupuestos/${budget.id}/oferta`} />}>
+                  <ButtonLink variant="outline" to={`/presupuestos/${budget.id}/oferta`}>
                     Crear oferta desde este presupuesto
-                  </Button>
+                  </ButtonLink>
                 )}
               </div>
               {pendingAction && (
@@ -249,9 +250,9 @@ export function BudgetDetailPage() {
         </CardContent>
       </Card>
 
-      <Button variant="outline" render={<Link to="/presupuestos" />} className="w-fit">
+      <ButtonLink variant="outline" to="/presupuestos" className="w-fit">
         Volver a presupuestos
-      </Button>
+      </ButtonLink>
     </div>
   )
 }

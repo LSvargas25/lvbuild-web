@@ -131,8 +131,9 @@ export function SiteLogCreatePage() {
               </FormField>
             </div>
 
-            <fieldset className="flex flex-col gap-3 border-t pt-4">
-              <legend className="pt-4 text-sm font-medium">Trabajadores y horas</legend>
+            <div className="border-t pt-4">
+            <fieldset className="flex flex-col gap-3">
+              <legend className="mb-3 text-sm font-medium">Trabajadores y horas</legend>
               {workers.fields.map((field, index) => {
                 const rowErrors = errors.workers?.[index]
                 const workerError = rowErrors?.workerId?.message
@@ -207,6 +208,7 @@ export function SiteLogCreatePage() {
                 Agregar trabajador
               </Button>
             </fieldset>
+            </div>
 
             <div className="flex flex-wrap justify-between gap-2 border-t pt-3 text-sm font-semibold">
               <span>Planilla estimada</span>

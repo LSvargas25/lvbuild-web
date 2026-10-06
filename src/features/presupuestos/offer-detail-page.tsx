@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { EntitySelect } from '@/components/entity-select'
 import { FormField } from '@/components/form-field'
 import { PageHeader } from '@/components/page-header'
 import { ErrorState, LoadingState } from '@/components/page-state'
 import { Badge } from '@/components/ui/badge'
+import { ButtonLink } from '@/components/button-link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -161,9 +162,9 @@ export function OfferDetailPage() {
                 </Button>
               </>
             )}
-            <Button variant="ghost" render={<Link to={`/presupuestos/${offer.budgetId}`} />}>
+            <ButtonLink variant="ghost" to={`/presupuestos/${offer.budgetId}`}>
               Ver presupuesto
-            </Button>
+            </ButtonLink>
           </div>
         </CardContent>
       </Card>

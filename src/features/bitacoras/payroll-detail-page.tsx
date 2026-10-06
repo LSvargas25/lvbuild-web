@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/page-header'
 import { ErrorState, LoadingState } from '@/components/page-state'
 import { Badge } from '@/components/ui/badge'
+import { ButtonLink } from '@/components/button-link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -104,12 +105,10 @@ export function PayrollDetailPage() {
                 Marcar como pagada
               </Button>
             )}
-            <Button
-              variant="outline"
-              render={<Link to={`/proyectos/${payroll.projectId}?tab=planillas`} />}
-            >
+            <ButtonLink
+              variant="outline" to={`/proyectos/${payroll.projectId}?tab=planillas`}>
               Volver al proyecto
-            </Button>
+            </ButtonLink>
           </div>
         </CardContent>
       </Card>

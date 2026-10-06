@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { FormField } from '@/components/form-field'
@@ -9,6 +9,7 @@ import { fieldA11y } from '@/lib/a11y'
 import { PageHeader } from '@/components/page-header'
 import { ErrorState, LoadingState } from '@/components/page-state'
 import { Badge } from '@/components/ui/badge'
+import { ButtonLink } from '@/components/button-link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -164,9 +165,9 @@ export function InvoiceDetailPage() {
                 Anular factura
               </Button>
             )}
-            <Button variant="outline" render={<Link to="/comercial/facturas" />}>
+            <ButtonLink variant="outline" to="/comercial/facturas">
               Volver a facturas
-            </Button>
+            </ButtonLink>
           </div>
         </CardContent>
       </Card>

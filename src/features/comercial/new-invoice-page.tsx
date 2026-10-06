@@ -2,12 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from 'react-hook-form'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { EntitySelect } from '@/components/entity-select'
 import { FormField } from '@/components/form-field'
 import { PageHeader } from '@/components/page-header'
 import { ErrorState, LoadingState } from '@/components/page-state'
+import { ButtonLink } from '@/components/button-link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -51,7 +52,7 @@ export function NewInvoicePage() {
           <CardDescription>Abre una caja antes de facturar.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button render={<Link to="/comercial/caja" />}>Ir a caja</Button>
+          <ButtonLink to="/comercial/caja">Ir a caja</ButtonLink>
         </CardContent>
       </Card>
     )

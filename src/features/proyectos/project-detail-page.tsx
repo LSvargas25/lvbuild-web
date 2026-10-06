@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
+import { ButtonLink } from '@/components/button-link'
 import { PageHeader } from '@/components/page-header'
 import { ErrorState, LoadingState } from '@/components/page-state'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
@@ -89,13 +89,15 @@ export function ProjectDetailPage() {
         value={tab}
         onValueChange={(value) => setSearchParams({ tab: value as string }, { replace: true })}
       >
-        <TabsList className="h-auto flex-wrap">
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <TabsList className="w-max">
           {TABS.map((t) => (
             <TabsTrigger key={t.value} value={t.value}>
               {t.label}
             </TabsTrigger>
           ))}
-        </TabsList>
+          </TabsList>
+        </div>
         <TabsContent value="resumen" className="pt-2">
           <ProjectSummary project={project} budget={budgetQuery.data} />
         </TabsContent>
@@ -156,7 +158,8 @@ function ProjectSummary({ project, budget }: { project: Project; budget: Budget 
         <CardContent className="flex flex-col gap-4 text-sm">
           <div className="flex flex-col gap-1.5">
             <span className="text-muted-foreground">
-              Avance según calendario · semana {project.weeksCounter}
+              Avance según calendario · {project.weeksCounter}{' '}
+              {project.weeksCounter === 1 ? 'semana registrada' : 'semanas registradas'} en bitácoras
             </span>
             <ProgressBar value={progress} label="Avance del proyecto según calendario" />
           </div>
@@ -169,12 +172,12 @@ function ProjectSummary({ project, budget }: { project: Project; budget: Budget 
             <Row label="Materiales usados" value={String(project.materialsUsedCount)} />
           </dl>
           <div className="flex flex-wrap gap-2 border-t pt-4">
-            <Button variant="outline" render={<Link to={`/ofertas/${project.offerId}`} />}>
+            <ButtonLink variant="outline" to={`/ofertas/${project.offerId}`}>
               Ver oferta
-            </Button>
-            <Button variant="outline" render={<Link to={`/presupuestos/${project.budgetId}`} />}>
+            </ButtonLink>
+            <ButtonLink variant="outline" to={`/presupuestos/${project.budgetId}`}>
               Ver presupuesto
-            </Button>
+            </ButtonLink>
           </div>
         </CardContent>
       </Card>
