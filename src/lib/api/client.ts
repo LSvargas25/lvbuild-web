@@ -4,7 +4,11 @@ import type { LoginResponse } from '@/types/auth'
 
 const baseURL = import.meta.env.VITE_API_BASE_URL
 
-export const apiClient = axios.create({ baseURL })
+// Una petición a una instancia dormida puede quedar colgada; con timeout pasa a ser un error de
+// red y React Query la reintenta con backoff (ver lib/api/retry.ts).
+const REQUEST_TIMEOUT_MS = 60_000
+
+export const apiClient = axios.create({ baseURL, timeout: REQUEST_TIMEOUT_MS })
 
 // Instancia sin interceptores: evita que el refresh dispare su propio 401 -> refresh en bucle.
 const refreshClient = axios.create({ baseURL })
