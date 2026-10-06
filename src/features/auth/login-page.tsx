@@ -1,32 +1,41 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import axios from 'axios'
+import { Building2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { Navigate, useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
-import { useAuth } from '@/features/auth/auth-context'
+import { FormField } from '@/components/form-field'
+import { fieldA11y } from '@/lib/a11y'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useAuth } from '@/features/auth/auth-context'
+import { getErrorMessage } from '@/lib/api/errors'
 
 const loginSchema = z.object({
-  email: z.string().email('Ingresá un correo válido'),
-  password: z.string().min(1, 'Ingresá tu contraseña'),
+  email: z.email('Ingresa un correo válido'),
+  password: z.string().min(1, 'Ingresa tu contraseña'),
 })
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
+function loginErrorMessage(error: unknown) {
+  if (axios.isAxiosError(error) && error.response?.status === 401) {
+    return 'Correo o contraseña incorrectos.'
+  }
+  if (axios.isAxiosError(error) && error.response?.status === 429) {
+    return 'Demasiados intentos. Espera un momento y vuelve a intentarlo.'
+  }
+  return getErrorMessage(error, 'No se pudo iniciar sesión. Intenta de nuevo.')
+}
+
 export function LoginPage() {
   const { login, isAuthenticated } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as { from?: string } | null)?.from ?? '/'
+
   const {
     register,
     handleSubmit,
@@ -35,26 +44,24 @@ export function LoginPage() {
 
   const mutation = useMutation({
     mutationFn: (values: LoginFormValues) => login(values),
-    onSuccess: () => navigate('/', { replace: true }),
-    onError: (error) => {
-      const message =
-        axios.isAxiosError(error) && error.response?.status === 401
-          ? 'Correo o contraseña incorrectos.'
-          : 'No se pudo iniciar sesión. Intentá de nuevo.'
-      toast.error(message)
-    },
+    onSuccess: () => navigate(from, { replace: true }),
   })
 
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />
+  if (isAuthenticated && !mutation.isSuccess) {
+    return <Navigate to={from} replace />
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-background px-4">
+    <main className="flex min-h-svh items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl">Iniciar sesión</CardTitle>
-          <CardDescription>LVConstrucciones</CardDescription>
+          <div className="mb-2 flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <Building2 className="size-5" aria-hidden="true" />
+          </div>
+          <CardTitle>
+            <h1 className="text-xl">Iniciar sesión</h1>
+          </CardTitle>
+          <CardDescription>LvBuild · ERP de LV Construcciones</CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -62,36 +69,33 @@ export function LoginPage() {
             className="flex flex-col gap-4"
             noValidate
           >
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Correo</Label>
+            <FormField id="email" label="Correo" error={errors.email?.message}>
               <Input
-                id="email"
                 type="email"
                 autoComplete="username"
+                {...fieldA11y('email', errors.email?.message)}
                 {...register('email')}
               />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Contraseña</Label>
+            </FormField>
+            <FormField id="password" label="Contraseña" error={errors.password?.message}>
               <Input
-                id="password"
                 type="password"
                 autoComplete="current-password"
+                {...fieldA11y('password', errors.password?.message)}
                 {...register('password')}
               />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
-            </div>
+            </FormField>
+            {mutation.isError && (
+              <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {loginErrorMessage(mutation.error)}
+              </p>
+            )}
             <Button type="submit" disabled={mutation.isPending} className="mt-2">
               {mutation.isPending ? 'Ingresando…' : 'Ingresar'}
             </Button>
           </form>
         </CardContent>
       </Card>
-    </div>
+    </main>
   )
 }

@@ -40,7 +40,10 @@ export function SiteHeader() {
       <Separator orientation="vertical" className="mr-2 h-4" />
       <div className="flex-1" />
       <DropdownMenu>
-        <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1.5 outline-none hover:bg-accent">
+        <DropdownMenuTrigger
+          aria-label={`Menú de ${session.name}`}
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <Avatar className="size-7">
             <AvatarFallback className="text-xs">{initials(session.name)}</AvatarFallback>
           </Avatar>
@@ -55,7 +58,7 @@ export function SiteHeader() {
           <DropdownMenuLabel>{session.email}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>
-            <LogOut className="mr-2 size-4" />
+            <LogOut className="mr-2 size-4" aria-hidden="true" />
             Cerrar sesión
           </DropdownMenuItem>
         </DropdownMenuContent>
