@@ -22,7 +22,7 @@ import {
   revertOfferToDraft,
   sendOfferToClient,
 } from '@/lib/api/offers'
-import { createProject } from '@/lib/api/projects'
+import { createProject, getProjects } from '@/lib/api/projects'
 import { formatDate, todayLocalISO } from '@/lib/dates'
 import { formatCRC } from '@/lib/format'
 import { OFFER_STATUS, OFFER_TYPE_LABEL, PAYMENT_FREQUENCY_LABEL } from '@/lib/status-labels'
@@ -40,6 +40,13 @@ export function OfferDetailPage() {
   const offerQuery = useQuery({ queryKey: ['offer', offerId], queryFn: () => getOffer(offerId) })
   const branchesQuery = useQuery(catalogQueries.branches)
   const customersQuery = useQuery(catalogQueries.customers)
+  // La API no filtra proyectos por oferta: se busca en la primera página (alcanza para la demo).
+  const projectsQuery = useQuery({
+    queryKey: ['projects', 'by-offer'],
+    queryFn: () => getProjects(1, 100),
+    enabled: offerQuery.data?.status === 'ClientAccepted',
+  })
+  const existingProject = projectsQuery.data?.items.find((p) => p.offerId === offerId)
 
   const onStatusChange = (message: string) => () => {
     toast.success(message)
@@ -169,7 +176,16 @@ export function OfferDetailPage() {
         </CardContent>
       </Card>
 
-      {offer.status === 'ClientAccepted' && canDecide && (
+      {existingProject && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <span>Esta oferta ya tiene un proyecto en ejecución.</span>
+            <ButtonLink to={`/proyectos/${existingProject.id}`}>Ver proyecto</ButtonLink>
+          </CardContent>
+        </Card>
+      )}
+
+      {offer.status === 'ClientAccepted' && canDecide && projectsQuery.isSuccess && !existingProject && (
         <Card>
           <CardHeader>
             <CardTitle>Crear proyecto</CardTitle>
