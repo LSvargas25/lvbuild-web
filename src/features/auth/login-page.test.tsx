@@ -42,11 +42,12 @@ describe('LoginPage', () => {
     expect(called).toBe(false)
   })
 
-  it('shows wrong credentials inline and stays on the page', async () => {
+  // La API real responde 403 con un mensaje en inglés.
+  it('shows wrong credentials inline (in Spanish) and stays on the page', async () => {
     const user = userEvent.setup()
     server.use(
       http.post(`${API}/auth/login`, () =>
-        HttpResponse.json({ statusCode: 401, message: 'Invalid email or password.' }, { status: 401 }),
+        HttpResponse.json({ statusCode: 403, message: 'Invalid email or password.' }, { status: 403 }),
       ),
     )
     const { router } = renderLogin()
@@ -58,6 +59,21 @@ describe('LoginPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Correo o contraseña incorrectos.')
     expect(router.state.location.pathname).toBe('/login')
     expect(getSession()).toBeNull()
+  })
+
+  it.each([
+    [403, 'This account is blocked. Contact an administrator.', 'Esta cuenta está bloqueada. Contacta a un administrador.'],
+    [429, '', 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.'],
+  ])('explains a %i response', async (status, message, expected) => {
+    const user = userEvent.setup()
+    server.use(http.post(`${API}/auth/login`, () => HttpResponse.json({ statusCode: status, message }, { status })))
+    renderLogin()
+
+    await user.type(screen.getByLabelText('Correo'), 'gerencia@lvbuild.test')
+    await user.type(screen.getByLabelText('Contraseña'), 'LvBuild#2026')
+    await user.click(screen.getByRole('button', { name: 'Ingresar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(expected)
   })
 
   it('stores the session and goes to the home page', async () => {

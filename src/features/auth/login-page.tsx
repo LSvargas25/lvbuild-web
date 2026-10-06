@@ -21,11 +21,16 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>
 
 function loginErrorMessage(error: unknown) {
-  if (axios.isAxiosError(error) && error.response?.status === 401) {
-    return 'Correo o contraseña incorrectos.'
-  }
-  if (axios.isAxiosError(error) && error.response?.status === 429) {
-    return 'Demasiados intentos. Espera un momento y vuelve a intentarlo.'
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status
+    // La API responde 403 a credenciales inválidas y a cuentas bloqueadas (mensajes en inglés).
+    if (status === 401 || status === 403) {
+      const message = (error.response?.data as { message?: string } | undefined)?.message ?? ''
+      return /blocked/i.test(message)
+        ? 'Esta cuenta está bloqueada. Contacta a un administrador.'
+        : 'Correo o contraseña incorrectos.'
+    }
+    if (status === 429) return 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.'
   }
   return getErrorMessage(error, 'No se pudo iniciar sesión. Intenta de nuevo.')
 }
