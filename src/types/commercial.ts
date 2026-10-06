@@ -111,10 +111,3 @@ export interface Invoice {
   balance: number
   isFullyPaid: boolean
 }
-
-export interface PagedResult<T> {
-  items: T[]
-  totalCount: number
-  pageNumber: number
-  pageSize: number
-}

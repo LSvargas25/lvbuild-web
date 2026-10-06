@@ -29,3 +29,6 @@ dist-ssr
 # Env files with secrets
 .env
 .env.local
+
+# Test coverage reports
+coverage/
