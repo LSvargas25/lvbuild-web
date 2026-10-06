@@ -19,6 +19,7 @@ import { ProjectSiteLogs } from '@/features/bitacoras/project-sitelogs'
 import { ProgressBar } from '@/features/proyectos/progress-bar'
 import { ProjectFinance } from '@/features/proyectos/project-finance'
 import { budgetUsage, timeProgress } from '@/features/proyectos/project-metrics'
+import { projectName } from '@/features/proyectos/project-name'
 import { getBudget } from '@/lib/api/budgets'
 import { catalogQueries, nameOf } from '@/lib/api/catalogs'
 import { getProject } from '@/lib/api/projects'
@@ -80,7 +81,7 @@ export function ProjectDetailPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={budgetQuery.data?.name ?? `Proyecto #${project.id}`}
+        title={projectName(project, budgetQuery.data?.name)}
         description={`${nameOf(customersQuery.data, project.customerId)} · ${nameOf(branchesQuery.data, project.branchId)}`}
         actions={<Badge variant={status.variant}>{status.label}</Badge>}
       />
@@ -130,7 +131,7 @@ function ProjectSummary({ project, budget }: { project: Project; budget: Budget 
       usage == null ? undefined : `${formatPercent(usage)} del presupuesto`,
     ],
     ['Gastos pendientes', formatCRC(project.pendingExpenses)],
-    ['Utilidad actual', formatCRC(project.currentProfit)],
+    ['Utilidad actual', formatCRC(project.currentProfit), 'Vendido − costo real, por capítulo'],
   ]
 
   return (

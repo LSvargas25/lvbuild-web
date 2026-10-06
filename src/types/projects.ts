@@ -18,6 +18,8 @@ export interface ProjectWorker {
 
 export interface Project {
   id: number
+  /** Nombre del proyecto (el del presupuesto del que se vendió). */
+  name?: string
   offerId: number
   budgetId: number
   customerId: number

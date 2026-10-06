@@ -17,7 +17,8 @@ import { useAuth } from '@/features/auth/auth-context'
 import { STATUS_LABEL } from '@/features/presupuestos/budget-status'
 import { ProgressBar } from '@/features/proyectos/progress-bar'
 import { timeProgress } from '@/features/proyectos/project-metrics'
-import { getBudget, getBudgets } from '@/lib/api/budgets'
+import { projectName } from '@/features/proyectos/project-name'
+import { getBudgets } from '@/lib/api/budgets'
 import { catalogQueries, nameOf } from '@/lib/api/catalogs'
 import { getInvoicesByBranch } from '@/lib/api/commercial'
 import { getProjects } from '@/lib/api/projects'
@@ -92,13 +93,6 @@ function ActiveProjectsCard() {
   const customersQuery = useQuery(catalogQueries.customers)
   const active = projectsQuery.data?.items.filter((p) => p.status === 'Active') ?? []
   const shown = active.slice(0, 5)
-  const budgetQueries = useQueries({
-    queries: shown.map((p) => ({
-      queryKey: ['budget', p.budgetId],
-      queryFn: () => getBudget(p.budgetId),
-      staleTime: 5 * 60_000,
-    })),
-  })
 
   return (
     <Card>
@@ -119,17 +113,17 @@ function ActiveProjectsCard() {
           <p className="text-sm text-muted-foreground">No hay proyectos activos.</p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {shown.map((project, i) => (
+            {shown.map((project) => (
               <li key={project.id} className="flex flex-col gap-1">
                 <div className="flex flex-wrap justify-between gap-2 text-sm">
                   <Link to={`/proyectos/${project.id}`} className="font-medium text-primary hover:underline">
-                    {budgetQueries[i]?.data?.name ?? `Proyecto #${project.id}`}
+                    {projectName(project)}
                   </Link>
                   <span className="text-muted-foreground">{nameOf(customersQuery.data, project.customerId)}</span>
                 </div>
                 <ProgressBar
                   value={timeProgress(project.startDate, project.endDate)}
-                  label={`Avance del proyecto ${project.id}`}
+                  label={`Avance de ${projectName(project)}`}
                 />
               </li>
             ))}

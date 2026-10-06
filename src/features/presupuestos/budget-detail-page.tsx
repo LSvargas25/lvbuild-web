@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { FileText, HardHat } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FormField } from '@/components/form-field'
@@ -93,6 +94,8 @@ export function BudgetDetailPage() {
   const budget = budgetQuery.data
   const roles = session?.roles ?? []
   const actions = availableBudgetActions(budget.status, roles)
+  // Un presupuesto tiene a lo sumo una oferta activa: si ya existe, se enlaza en vez de crearla.
+  const showCreateOffer = canCreateOffer(budget.status, roles) && !budget.offerId
 
   function handleActionClick(action: BudgetAction) {
     if (action.needsComment) {
@@ -110,6 +113,21 @@ export function BudgetDetailPage() {
         description={`${nameOf(customersQuery.data, budget.customerId)} · ${nameOf(branchesQuery.data, budget.branchId)}`}
         actions={<Badge variant={STATUS_VARIANT[budget.status]}>{STATUS_LABEL[budget.status]}</Badge>}
       />
+
+      {(budget.offerId || budget.projectId) && (
+        <nav aria-label="Documentos relacionados" className="flex flex-wrap gap-2">
+          {budget.offerId && (
+            <ButtonLink variant="outline" size="sm" to={`/ofertas/${budget.offerId}`}>
+              <FileText aria-hidden="true" /> Ver oferta
+            </ButtonLink>
+          )}
+          {budget.projectId && (
+            <ButtonLink variant="outline" size="sm" to={`/proyectos/${budget.projectId}`}>
+              <HardHat aria-hidden="true" /> Ver proyecto
+            </ButtonLink>
+          )}
+        </nav>
+      )}
 
       <Card>
         <CardHeader>
@@ -157,7 +175,7 @@ export function BudgetDetailPage() {
             </div>
           </dl>
 
-          {(actions.length > 0 || canCreateOffer(budget.status, roles)) && (
+          {(actions.length > 0 || showCreateOffer) && (
             <div className="flex flex-col gap-3 border-t pt-4">
               <div className="flex flex-wrap gap-2">
                 {actions.map((action) => (
@@ -170,7 +188,7 @@ export function BudgetDetailPage() {
                     {action.label}
                   </Button>
                 ))}
-                {canCreateOffer(budget.status, roles) && (
+                {showCreateOffer && (
                   <ButtonLink variant="outline" to={`/presupuestos/${budget.id}/oferta`}>
                     Crear oferta desde este presupuesto
                   </ButtonLink>

@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table'
 import { ProgressBar } from '@/features/proyectos/progress-bar'
 import { budgetUsage, timeProgress, usageTone } from '@/features/proyectos/project-metrics'
+import { projectName } from '@/features/proyectos/project-name'
 import { getBudget } from '@/lib/api/budgets'
 import { catalogQueries, nameOf } from '@/lib/api/catalogs'
 import { getProjects } from '@/lib/api/projects'
@@ -84,7 +85,7 @@ export function ProjectsListPage() {
                         to={`/proyectos/${project.id}`}
                         className="font-medium text-primary hover:underline"
                       >
-                        {budget?.name ?? `Proyecto #${project.id}`}
+                        {projectName(project, budget?.name)}
                       </Link>
                       <div className="text-xs text-muted-foreground">
                         {formatDate(project.startDate)} – {formatDate(project.endDate)}

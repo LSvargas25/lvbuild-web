@@ -19,6 +19,14 @@ export const catalogQueries = {
   products: { queryKey: ['products'], queryFn: () => getAllPages<Product>('/products') },
 } as const
 
+/**
+ * Sucursales donde se puede abrir caja y facturar: la API solo lo permite en las comerciales
+ * (oficinas y bodegas nunca tienen facturas).
+ */
+export function commercialBranches(branches: BranchOption[] | undefined): BranchOption[] {
+  return (branches ?? []).filter((branch) => branch.branchType === 'Commercial')
+}
+
 /** Nombre de una entidad por id, o `#id` si el catálogo no la tiene (o no cargó). */
 export function nameOf(items: { id: number; name: string }[] | undefined, id: number | null) {
   if (id == null) return '—'
