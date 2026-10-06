@@ -54,10 +54,3 @@ export interface Payroll {
   paidAt: string | null
   details: PayrollDetail[]
 }
-
-export interface PagedResult<T> {
-  items: T[]
-  totalCount: number
-  pageNumber: number
-  pageSize: number
-}

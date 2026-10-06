@@ -1,11 +1,9 @@
 export type BranchType = 'Office' | 'Commercial' | 'Warehouse'
 
-export interface Branch {
+/** Sucursal para listas de selección (`GET /branches/options`). */
+export interface BranchOption {
   id: number
   name: string
-  city: string | null
-  province: string | null
-  status: string
   branchType: BranchType
 }
 
@@ -110,11 +108,4 @@ export interface Invoice {
   totalPaid: number
   balance: number
   isFullyPaid: boolean
-}
-
-export interface PagedResult<T> {
-  items: T[]
-  totalCount: number
-  pageNumber: number
-  pageSize: number
 }

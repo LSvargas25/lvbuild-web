@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api/client'
+import { DEFAULT_PAGE_SIZE, getPage } from '@/lib/api/paging'
 import type {
-  Branch,
   CashRegister,
   CloseCashRegisterRequest,
   CreateInvoiceRequest,
@@ -8,29 +8,7 @@ import type {
   Invoice,
   IssueInvoiceRequest,
   OpenCashRegisterRequest,
-  PagedResult,
-  Product,
 } from '@/types/commercial'
-
-export function getBranches() {
-  return apiClient
-    .get<PagedResult<Branch>>('/branches', { params: { pageSize: 100 } })
-    .then((res) => res.data.items)
-}
-
-export function getBranchInventory(branchId: number) {
-  return apiClient
-    .get<{ productId: number; productName: string; quantity: number }[]>(
-      `/branches/${branchId}/inventory`,
-    )
-    .then((res) => res.data)
-}
-
-export function getProducts() {
-  return apiClient
-    .get<PagedResult<Product>>('/products', { params: { pageSize: 100 } })
-    .then((res) => res.data.items)
-}
 
 export function openCashRegister(payload: OpenCashRegisterRequest) {
   return apiClient.post<CashRegister>('/cash-registers/open', payload).then((res) => res.data)
@@ -66,10 +44,10 @@ export function cancelInvoice(id: number) {
   return apiClient.post<Invoice>(`/invoices/${id}/cancel`).then((res) => res.data)
 }
 
-export function getInvoicesByBranch(branchId: number, pageNumber = 1, pageSize = 20) {
-  return apiClient
-    .get<PagedResult<Invoice>>(`/branches/${branchId}/invoices`, {
-      params: { pageNumber, pageSize },
-    })
-    .then((res) => res.data)
+export function getInvoicesByBranch(
+  branchId: number,
+  pageNumber = 1,
+  pageSize = DEFAULT_PAGE_SIZE,
+) {
+  return getPage<Invoice>(`/branches/${branchId}/invoices`, pageNumber, pageSize)
 }

@@ -1,32 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { FormField } from '@/components/form-field'
+import { PageHeader } from '@/components/page-header'
+import { ErrorState, LoadingState } from '@/components/page-state'
 import { Badge } from '@/components/ui/badge'
+import { ButtonLink } from '@/components/button-link'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/features/auth/auth-context'
-import { getWorkers } from '@/lib/api/sitelogs'
+import { catalogQueries, nameOf } from '@/lib/api/catalogs'
+import { getErrorMessage } from '@/lib/api/errors'
 import {
   approveSiteLog,
   getSiteLog,
   revertSiteLogToDraft,
   submitSiteLogToReview,
 } from '@/lib/api/sitelogs'
-import type { SiteLogStatus } from '@/types/sitelogs'
-
-const STATUS_LABEL: Record<SiteLogStatus, string> = {
-  Draft: 'Borrador',
-  Review: 'En revisión',
-  Approved: 'Aprobada',
-}
+import { formatDate } from '@/lib/dates'
+import { formatCRC } from '@/lib/format'
+import { SITE_LOG_STATUS } from '@/lib/status-labels'
+import { MANAGEMENT_ROLES } from '@/types/roles'
 
 export function SiteLogDetailPage() {
   const { id } = useParams()
   const siteLogId = Number(id)
-  const { session } = useAuth()
-  const navigate = useNavigate()
+  const { hasRole } = useAuth()
   const queryClient = useQueryClient()
   const [showRevert, setShowRevert] = useState(false)
   const [revertReason, setRevertReason] = useState('')
@@ -35,127 +36,147 @@ export function SiteLogDetailPage() {
     queryKey: ['site-log', siteLogId],
     queryFn: () => getSiteLog(siteLogId),
   })
-  const workersQuery = useQuery({ queryKey: ['workers'], queryFn: getWorkers })
+  const workersQuery = useQuery(catalogQueries.workers)
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['site-log', siteLogId] })
+  const onDone = (message: string) => () => {
+    toast.success(message)
+    queryClient.invalidateQueries({ queryKey: ['site-log', siteLogId] })
+    queryClient.invalidateQueries({ queryKey: ['site-logs'] })
+  }
 
   const submitMutation = useMutation({
     mutationFn: () => submitSiteLogToReview(siteLogId),
-    onSuccess: () => {
-      toast.success('Bitácora enviada a revisión')
-      invalidate()
-    },
-    onError: () => toast.error('No se pudo enviar a revisión.'),
+    onSuccess: onDone('Bitácora enviada a revisión'),
+    onError: (error) => toast.error(getErrorMessage(error, 'No se pudo enviar a revisión.')),
   })
-
   const approveMutation = useMutation({
     mutationFn: () => approveSiteLog(siteLogId),
-    onSuccess: () => {
-      toast.success('Bitácora aprobada')
-      invalidate()
-    },
-    onError: () => toast.error('No se pudo aprobar la bitácora.'),
+    onSuccess: onDone('Bitácora aprobada'),
+    onError: (error) => toast.error(getErrorMessage(error, 'No se pudo aprobar la bitácora.')),
   })
-
   const revertMutation = useMutation({
-    mutationFn: () => revertSiteLogToDraft(siteLogId, revertReason),
+    mutationFn: () => revertSiteLogToDraft(siteLogId, revertReason.trim()),
     onSuccess: () => {
-      toast.success('Bitácora devuelta a borrador')
       setShowRevert(false)
       setRevertReason('')
-      invalidate()
+      onDone('Bitácora devuelta a borrador')()
     },
-    onError: () => toast.error('No se pudo devolver a borrador.'),
+    onError: (error) => toast.error(getErrorMessage(error, 'No se pudo devolver a borrador.')),
   })
 
-  if (siteLogQuery.isLoading) return <p className="text-muted-foreground">Cargando…</p>
-  const log = siteLogQuery.data
-  if (!log) return <p className="text-destructive">No se encontró la bitácora.</p>
-
-  const canManage = session?.roles.includes('ProjectAdmin')
-  const canDecide = session?.roles.some((r) => r === 'GeneralManager' || r === 'OperationsDirector')
-
-  function workerName(workerId: number) {
-    return workersQuery.data?.find((w) => w.id === workerId)?.name ?? `#${workerId}`
+  if (siteLogQuery.isPending) return <LoadingState />
+  if (siteLogQuery.isError) {
+    return (
+      <ErrorState
+        error={siteLogQuery.error}
+        fallback="No se encontró la bitácora."
+        backTo={{ to: '/proyectos', label: 'Volver a proyectos' }}
+      />
+    )
   }
 
-  return (
-    <div className="flex max-w-2xl flex-col gap-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>
-            {new Date(log.weekStart).toLocaleDateString('es-CR')} –{' '}
-            {new Date(log.weekEnd).toLocaleDateString('es-CR')}
-          </CardTitle>
-          <Badge variant={log.status === 'Approved' ? 'default' : 'secondary'}>
-            {STATUS_LABEL[log.status]}
-          </Badge>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          <div>
-            <span className="text-muted-foreground">Trabajo realizado: </span>
-            {log.taskDescription}
-          </div>
-          {log.pendingTasks && (
-            <div>
-              <span className="text-muted-foreground">Pendientes: </span>
-              {log.pendingTasks}
-            </div>
-          )}
+  const log = siteLogQuery.data
+  const canManage = hasRole('ProjectAdmin')
+  const canDecide = hasRole(...MANAGEMENT_ROLES)
+  const status = SITE_LOG_STATUS[log.status]
+  const busy = submitMutation.isPending || approveMutation.isPending || revertMutation.isPending
 
-          <div className="flex flex-col gap-1 border-t pt-3">
-            <span className="font-medium">Trabajadores</span>
-            {log.workers.map((w) => (
-              <div key={w.id} className="flex justify-between">
-                <span>{workerName(w.workerId)}</span>
-                <span className="font-mono tabular-nums">{w.hoursWorked} h</span>
+  return (
+    <div className="flex max-w-3xl flex-col gap-4">
+      <PageHeader
+        title={`Semana del ${formatDate(log.weekStart)} al ${formatDate(log.weekEnd)}`}
+        actions={<Badge variant={status.variant}>{status.label}</Badge>}
+      />
+      <Card>
+        <CardContent className="flex flex-col gap-4 text-sm">
+          <dl className="flex flex-col gap-2">
+            <div>
+              <dt className="text-muted-foreground">Trabajo realizado</dt>
+              <dd className="whitespace-pre-line">{log.taskDescription}</dd>
+            </div>
+            {log.pendingTasks && (
+              <div>
+                <dt className="text-muted-foreground">Pendientes</dt>
+                <dd className="whitespace-pre-line">{log.pendingTasks}</dd>
               </div>
-            ))}
-          </div>
+            )}
+          </dl>
+
+          <section aria-labelledby="sitelog-workers" className="flex flex-col gap-1 border-t pt-3">
+            <h2 id="sitelog-workers" className="font-medium">
+              Trabajadores
+            </h2>
+            <ul className="flex flex-col gap-1">
+              {log.workers.map((w) => (
+                <li key={w.id} className="flex justify-between">
+                  <span>{nameOf(workersQuery.data, w.workerId)}</span>
+                  <span className="font-mono tabular-nums">{w.hoursWorked} h</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <dl className="flex flex-col gap-1 border-t pt-3">
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Planilla</dt>
+              <dd className="font-mono tabular-nums">{formatCRC(log.totalPayroll)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Materiales</dt>
+              <dd className="font-mono tabular-nums">{formatCRC(log.totalMaterials)}</dd>
+            </div>
+          </dl>
 
           <div className="flex flex-wrap gap-2 border-t pt-4">
             {log.status === 'Draft' && canManage && (
-              <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
+              <Button onClick={() => submitMutation.mutate()} disabled={busy}>
                 Enviar a revisión
               </Button>
             )}
             {log.status === 'Review' && canDecide && (
               <>
-                <Button onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending}>
+                <Button onClick={() => approveMutation.mutate()} disabled={busy}>
                   Aprobar
                 </Button>
-                <Button variant="outline" onClick={() => setShowRevert(true)}>
+                <Button variant="outline" onClick={() => setShowRevert(true)} disabled={busy}>
                   Devolver a borrador
                 </Button>
               </>
             )}
             {log.status === 'Approved' && canManage && (
-              <Button onClick={() => navigate(`/bitacoras/${log.id}/planilla`)}>
-                Crear planilla
-              </Button>
+              <ButtonLink to={`/bitacoras/${log.id}/planilla`}>Crear planilla</ButtonLink>
             )}
-            <Button variant="outline" render={<Link to={`/proyectos/${log.projectId}/bitacoras`} />}>
-              Volver al listado
-            </Button>
+            <ButtonLink
+              variant="outline" to={`/proyectos/${log.projectId}?tab=bitacoras`}>
+              Volver al proyecto
+            </ButtonLink>
           </div>
 
           {showRevert && (
-            <div className="flex gap-2 rounded-lg border p-3">
-              <Input
-                placeholder="Motivo"
-                value={revertReason}
-                onChange={(e) => setRevertReason(e.target.value)}
-              />
-              <Button
-                onClick={() => revertMutation.mutate()}
-                disabled={!revertReason || revertMutation.isPending}
-              >
-                Confirmar
-              </Button>
-              <Button variant="ghost" onClick={() => setShowRevert(false)}>
-                Cancelar
-              </Button>
-            </div>
+            <form
+              className="flex flex-col gap-3 rounded-lg border p-3"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (revertReason.trim()) revertMutation.mutate()
+              }}
+            >
+              <FormField id="sitelog-revert-reason" label="Motivo de la devolución">
+                <Input
+                  id="sitelog-revert-reason"
+                  autoFocus
+                  value={revertReason}
+                  onChange={(e) => setRevertReason(e.target.value)}
+                />
+              </FormField>
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" disabled={!revertReason.trim() || revertMutation.isPending}>
+                  Confirmar devolución
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setShowRevert(false)}>
+                  Volver
+                </Button>
+              </div>
+            </form>
           )}
         </CardContent>
       </Card>

@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
@@ -9,6 +10,30 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
+    },
+  },
+  build: {
+    rolldownOptions: {
+      output: {
+        // React cambia poco entre deploys: en su propio chunk queda cacheado aunque cambie la app.
+        codeSplitting: {
+          groups: [{ name: 'react-vendor', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ }],
+        },
+      },
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    // Los tests de pantallas escriben formularios completos; en CI con cobertura superan 5 s.
+    testTimeout: 20_000,
+    // Dates are computed in Costa Rica time; pin the runner's zone so "today" is deterministic.
+    env: { TZ: 'UTC', VITE_API_BASE_URL: 'http://api.test/api' },
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/components/ui/**', 'src/test/**', 'src/**/*.test.{ts,tsx}', 'src/main.tsx'],
+      reporter: ['text', 'html', 'json-summary'],
     },
   },
 })

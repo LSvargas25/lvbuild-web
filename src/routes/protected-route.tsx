@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@/features/auth/auth-context'
 import type { Role } from '@/types/roles'
 
@@ -7,13 +7,14 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-  const { isAuthenticated, session } = useAuth()
+  const { isAuthenticated, hasRole } = useAuth()
+  const location = useLocation()
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
   }
 
-  if (allowedRoles && !session?.roles.some((role) => allowedRoles.includes(role))) {
+  if (allowedRoles && !hasRole(...allowedRoles)) {
     return <Navigate to="/" replace />
   }
 

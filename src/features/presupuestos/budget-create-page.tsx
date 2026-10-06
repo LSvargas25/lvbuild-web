@@ -1,301 +1,181 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus } from 'lucide-react'
+import { Controller, FormProvider, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { EntitySelect } from '@/components/entity-select'
+import { FormField } from '@/components/form-field'
+import { fieldA11y } from '@/lib/a11y'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { ChapterFields } from '@/features/presupuestos/budget-form/chapter-fields'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { createBudget, getCustomers } from '@/lib/api/budgets'
-import { getBranches } from '@/lib/api/commercial'
-import type { BudgetActivityInput, BudgetChapterInput } from '@/types/budgets'
-
-function emptyActivity(): BudgetActivityInput {
-  return { description: '', materialQuantity: 0, materialCost: 0, laborCost: 0, equipmentCost: 0 }
-}
-
-function emptyChapter(order: number): BudgetChapterInput {
-  return { name: '', order, estimatedWeeks: 1, activities: [emptyActivity()] }
-}
+  budgetSchema,
+  defaultBudgetValues,
+  directCost,
+  emptyChapter,
+  toCreateBudgetRequest,
+  type BudgetFormValues,
+} from '@/features/presupuestos/budget-form/schema'
+import { createBudget } from '@/lib/api/budgets'
+import { catalogQueries } from '@/lib/api/catalogs'
+import { getErrorMessage } from '@/lib/api/errors'
+import { formatCRC } from '@/lib/format'
 
 export function BudgetCreatePage() {
   const navigate = useNavigate()
-  const customersQuery = useQuery({ queryKey: ['customers'], queryFn: getCustomers })
-  const branchesQuery = useQuery({ queryKey: ['branches'], queryFn: getBranches })
+  const queryClient = useQueryClient()
+  const customersQuery = useQuery(catalogQueries.customers)
+  const branchesQuery = useQuery(catalogQueries.branches)
 
-  const [name, setName] = useState('')
-  const [customerId, setCustomerId] = useState<string>('')
-  const [branchId, setBranchId] = useState<string>('')
-  const [utilityPercentage, setUtilityPercentage] = useState(15)
-  const [indirectCostsTotal, setIndirectCostsTotal] = useState(0)
-  const [chapters, setChapters] = useState<BudgetChapterInput[]>([emptyChapter(1)])
+  const form = useForm<BudgetFormValues>({
+    resolver: zodResolver(budgetSchema),
+    defaultValues: defaultBudgetValues,
+  })
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = form
+  const chapters = useFieldArray({ control, name: 'chapters' })
+  const watchedChapters = useWatch({ control, name: 'chapters' })
 
   const mutation = useMutation({
     mutationFn: createBudget,
     onSuccess: (budget) => {
       toast.success('Presupuesto creado como borrador')
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
       navigate(`/presupuestos/${budget.id}`)
     },
-    onError: () => toast.error('No se pudo crear el presupuesto.'),
+    onError: (error) => toast.error(getErrorMessage(error, 'No se pudo crear el presupuesto.')),
   })
 
-  function updateChapter(index: number, patch: Partial<BudgetChapterInput>) {
-    setChapters((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)))
-  }
-
-  function updateActivity(chapterIndex: number, activityIndex: number, patch: Partial<BudgetActivityInput>) {
-    setChapters((prev) =>
-      prev.map((c, i) =>
-        i === chapterIndex
-          ? {
-              ...c,
-              activities: c.activities.map((a, ai) =>
-                ai === activityIndex ? { ...a, ...patch } : a,
-              ),
-            }
-          : c,
-      ),
-    )
-  }
-
-  function addChapter() {
-    setChapters((prev) => [...prev, emptyChapter(prev.length + 1)])
-  }
-
-  function removeChapter(index: number) {
-    setChapters((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  function addActivity(chapterIndex: number) {
-    setChapters((prev) =>
-      prev.map((c, i) =>
-        i === chapterIndex ? { ...c, activities: [...c.activities, emptyActivity()] } : c,
-      ),
-    )
-  }
-
-  function removeActivity(chapterIndex: number, activityIndex: number) {
-    setChapters((prev) =>
-      prev.map((c, i) =>
-        i === chapterIndex
-          ? { ...c, activities: c.activities.filter((_, ai) => ai !== activityIndex) }
-          : c,
-      ),
-    )
-  }
-
-  const estimatedTotal = chapters.reduce(
-    (sum, c) =>
-      sum +
-      c.activities.reduce((aSum, a) => aSum + a.materialCost + a.laborCost + a.equipmentCost, 0),
-    0,
-  )
-
-  function handleSubmit() {
-    if (!name || !customerId || !branchId) {
-      toast.error('Completá nombre, cliente y sucursal.')
-      return
-    }
-    mutation.mutate({
-      name,
-      customerId: Number(customerId),
-      branchId: Number(branchId),
-      utilityPercentage,
-      indirectCostsTotal,
-      chapters,
-    })
-  }
-
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Nuevo presupuesto</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label>Nombre del presupuesto</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Cliente</Label>
-              <Select value={customerId || undefined} onValueChange={(v) => setCustomerId(v ?? '')}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Elegí un cliente">
-                    {(value: string | null) =>
-                      customersQuery.data?.find((c) => String(c.id) === value)?.name ??
-                      'Elegí un cliente'
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {customersQuery.data?.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Sucursal</Label>
-              <Select value={branchId || undefined} onValueChange={(v) => setBranchId(v ?? '')}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Elegí una sucursal">
-                    {(value: string | null) =>
-                      branchesQuery.data?.find((b) => String(b.id) === value)?.name ??
-                      'Elegí una sucursal'
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {branchesQuery.data?.map((b) => (
-                    <SelectItem key={b.id} value={String(b.id)}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Utilidad (%)</Label>
-              <Input
-                type="number"
-                value={utilityPercentage}
-                onChange={(e) => setUtilityPercentage(Number(e.target.value))}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Costos indirectos (₡)</Label>
-              <Input
-                type="number"
-                value={indirectCostsTotal}
-                onChange={(e) => setIndirectCostsTotal(Number(e.target.value))}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4 border-t pt-4">
-            <Label>Capítulos</Label>
-            {chapters.map((chapter, ci) => (
-              <div key={ci} className="flex flex-col gap-3 rounded-lg border p-3">
-                <div className="flex items-end gap-2">
-                  <div className="flex flex-1 flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground">Nombre del capítulo</Label>
-                    <Input
-                      value={chapter.name}
-                      onChange={(e) => updateChapter(ci, { name: e.target.value })}
+    <FormProvider {...form}>
+      <form
+        noValidate
+        onSubmit={handleSubmit((values) => mutation.mutate(toCreateBudgetRequest(values)))}
+        className="flex max-w-4xl flex-col gap-4"
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>Nuevo presupuesto</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField id="budget-name" label="Nombre del presupuesto" error={errors.name?.message}>
+                <Input {...fieldA11y('budget-name', errors.name?.message)} {...register('name')} />
+              </FormField>
+              <FormField id="budget-customer" label="Cliente" error={errors.customerId?.message}>
+                <Controller
+                  control={control}
+                  name="customerId"
+                  render={({ field }) => (
+                    <EntitySelect
+                      id="budget-customer"
+                      items={customersQuery.data}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Elige un cliente"
+                      invalid={!!errors.customerId}
+                      describedBy={errors.customerId ? 'budget-customer-error' : undefined}
                     />
-                  </div>
-                  <div className="flex w-32 flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground">Semanas est.</Label>
-                    <Input
-                      type="number"
-                      value={chapter.estimatedWeeks}
-                      onChange={(e) =>
-                        updateChapter(ci, { estimatedWeeks: Number(e.target.value) })
-                      }
+                  )}
+                />
+              </FormField>
+              <FormField id="budget-branch" label="Sucursal" error={errors.branchId?.message}>
+                <Controller
+                  control={control}
+                  name="branchId"
+                  render={({ field }) => (
+                    <EntitySelect
+                      id="budget-branch"
+                      items={branchesQuery.data}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Elige una sucursal"
+                      invalid={!!errors.branchId}
+                      describedBy={errors.branchId ? 'budget-branch-error' : undefined}
                     />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeChapter(ci)}
-                    disabled={chapters.length === 1}
-                  >
-                    Quitar capítulo
-                  </Button>
-                </div>
-
-                <div className="flex flex-col gap-2 pl-3">
-                  {chapter.activities.map((activity, ai) => (
-                    <div key={ai} className="grid grid-cols-6 items-end gap-2">
-                      <div className="col-span-2 flex flex-col gap-1">
-                        <Label className="text-xs text-muted-foreground">Actividad</Label>
-                        <Input
-                          value={activity.description}
-                          onChange={(e) =>
-                            updateActivity(ci, ai, { description: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <Label className="text-xs text-muted-foreground">Materiales</Label>
-                        <Input
-                          type="number"
-                          value={activity.materialCost}
-                          onChange={(e) =>
-                            updateActivity(ci, ai, { materialCost: Number(e.target.value) })
-                          }
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <Label className="text-xs text-muted-foreground">Mano de obra</Label>
-                        <Input
-                          type="number"
-                          value={activity.laborCost}
-                          onChange={(e) =>
-                            updateActivity(ci, ai, { laborCost: Number(e.target.value) })
-                          }
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <Label className="text-xs text-muted-foreground">Equipo</Label>
-                        <Input
-                          type="number"
-                          value={activity.equipmentCost}
-                          onChange={(e) =>
-                            updateActivity(ci, ai, { equipmentCost: Number(e.target.value) })
-                          }
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeActivity(ci, ai)}
-                        disabled={chapter.activities.length === 1}
-                      >
-                        Quitar
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-fit"
-                    onClick={() => addActivity(ci)}
-                  >
-                    + Agregar actividad
-                  </Button>
-                </div>
+                  )}
+                />
+              </FormField>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  id="budget-utility"
+                  label="Utilidad (%)"
+                  error={errors.utilityPercentage?.message}
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    inputMode="decimal"
+                    {...fieldA11y('budget-utility', errors.utilityPercentage?.message)}
+                    {...register('utilityPercentage', { valueAsNumber: true })}
+                  />
+                </FormField>
+                <FormField
+                  id="budget-indirect"
+                  label="Costos indirectos (₡)"
+                  error={errors.indirectCostsTotal?.message}
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    inputMode="decimal"
+                    {...fieldA11y('budget-indirect', errors.indirectCostsTotal?.message)}
+                    {...register('indirectCostsTotal', { valueAsNumber: true })}
+                  />
+                </FormField>
               </div>
-            ))}
-            <Button type="button" variant="outline" size="sm" className="w-fit" onClick={addChapter}>
-              + Agregar capítulo
+            </div>
+
+            <section aria-labelledby="chapters-heading" className="flex flex-col gap-4 border-t pt-4">
+              <h2 id="chapters-heading" className="text-sm font-medium">
+                Capítulos
+              </h2>
+              {chapters.fields.map((field, index) => (
+                <ChapterFields
+                  key={field.id}
+                  index={index}
+                  canRemove={chapters.fields.length > 1}
+                  onRemove={() => chapters.remove(index)}
+                />
+              ))}
+              {errors.chapters?.root?.message && (
+                <p className="text-sm text-destructive">{errors.chapters.root.message}</p>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => chapters.append(emptyChapter())}
+              >
+                <Plus aria-hidden="true" />
+                Agregar capítulo
+              </Button>
+            </section>
+
+            <div className="flex flex-wrap justify-between gap-2 border-t pt-3 text-sm font-semibold">
+              <span>Costo directo estimado</span>
+              <span className="font-mono tabular-nums" aria-live="polite">
+                {formatCRC(directCost(watchedChapters ?? []))}
+              </span>
+            </div>
+
+            <Button type="submit" disabled={mutation.isPending} className="sm:w-fit">
+              {mutation.isPending ? 'Creando…' : 'Crear presupuesto (borrador)'}
             </Button>
-          </div>
-
-          <div className="flex justify-between border-t pt-3 text-sm font-semibold">
-            <span>Costo directo estimado</span>
-            <span className="font-mono tabular-nums">₡{estimatedTotal.toLocaleString('es-CR')}</span>
-          </div>
-
-          <Button onClick={handleSubmit} disabled={mutation.isPending}>
-            {mutation.isPending ? 'Creando…' : 'Crear presupuesto (borrador)'}
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+      </form>
+    </FormProvider>
   )
 }

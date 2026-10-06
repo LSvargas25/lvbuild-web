@@ -1,10 +1,13 @@
 import { apiClient } from '@/lib/api/client'
-import type { CreatePayrollRequest, PagedResult, Payroll } from '@/types/payroll'
+import { DEFAULT_PAGE_SIZE, getPage } from '@/lib/api/paging'
+import type { CreatePayrollRequest, Payroll } from '@/types/payroll'
 
-export function getPayrollsByProject(projectId: number) {
-  return apiClient
-    .get<PagedResult<Payroll>>(`/projects/${projectId}/payrolls`, { params: { pageSize: 50 } })
-    .then((res) => res.data)
+export function getPayrollsByProject(
+  projectId: number,
+  pageNumber = 1,
+  pageSize = DEFAULT_PAGE_SIZE,
+) {
+  return getPage<Payroll>(`/projects/${projectId}/payrolls`, pageNumber, pageSize)
 }
 
 export function getPayroll(id: number) {

@@ -48,9 +48,13 @@ export interface Offer {
   exclusions: string | null
   totalProjectPrice: number | null
   agreedPercentage: number | null
-  paymentFrequency: PaymentFrequency
+  paymentFrequency: PaymentFrequency | null
+  percentageIncludes: string | null
+  percentageExcludes: string | null
+  percentageCalculationMethod: string | null
   status: OfferStatus
-  generatedPdfPath: string | null
+  /** Ruta relativa a la API del PDF (`/api/offers/{id}/pdf`); null mientras es borrador. */
+  pdfUrl: string | null
   createdByUserId: number
   chapters: OfferChapter[]
 }

@@ -1,16 +1,13 @@
 import { apiClient } from '@/lib/api/client'
-import type { CreateSiteLogRequest, PagedResult, SiteLog, Worker } from '@/types/sitelogs'
+import { DEFAULT_PAGE_SIZE, getPage } from '@/lib/api/paging'
+import type { CreateSiteLogRequest, SiteLog } from '@/types/sitelogs'
 
-export function getWorkers() {
-  return apiClient
-    .get<PagedResult<Worker>>('/workers', { params: { pageSize: 100 } })
-    .then((res) => res.data.items)
-}
-
-export function getSiteLogsByProject(projectId: number) {
-  return apiClient
-    .get<PagedResult<SiteLog>>(`/projects/${projectId}/site-logs`, { params: { pageSize: 50 } })
-    .then((res) => res.data)
+export function getSiteLogsByProject(
+  projectId: number,
+  pageNumber = 1,
+  pageSize = DEFAULT_PAGE_SIZE,
+) {
+  return getPage<SiteLog>(`/projects/${projectId}/site-logs`, pageNumber, pageSize)
 }
 
 export function getSiteLog(id: number) {

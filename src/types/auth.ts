@@ -14,22 +14,3 @@ export interface LoginResponse {
   email: string
   roles: Role[]
 }
-
-export interface RefreshTokenRequest {
-  refreshToken: string
-}
-
-export interface UserProfile {
-  id: number
-  name: string
-  email: string
-  status: string
-  profilePhotoPath: string | null
-  roles: Role[]
-  createdAt: string
-  lastLoginAt: string | null
-}
-
-export interface UpdateProfileRequest {
-  name: string
-}

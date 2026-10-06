@@ -1,21 +1,14 @@
 import { apiClient } from '@/lib/api/client'
-import type { Budget, BudgetHistoryEntry, CreateBudgetRequest, PagedResult } from '@/types/budgets'
+import { DEFAULT_PAGE_SIZE, getPage } from '@/lib/api/paging'
+import type {
+  Budget,
+  BudgetHistoryEntry,
+  BudgetStatus,
+  CreateBudgetRequest,
+} from '@/types/budgets'
 
-export interface Customer {
-  id: number
-  name: string
-}
-
-export function getCustomers() {
-  return apiClient
-    .get<PagedResult<Customer>>('/customers', { params: { pageSize: 100 } })
-    .then((res) => res.data.items)
-}
-
-export function getBudgets() {
-  return apiClient
-    .get<PagedResult<Budget>>('/budgets', { params: { pageSize: 50 } })
-    .then((res) => res.data)
+export function getBudgets(pageNumber = 1, status?: BudgetStatus, pageSize = DEFAULT_PAGE_SIZE) {
+  return getPage<Budget>('/budgets', pageNumber, pageSize, status ? { status } : {})
 }
 
 export function getBudget(id: number) {
