@@ -11,7 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/features/auth/auth-context'
+import { DEMO_ACCOUNTS, DEMO_PASSWORD } from '@/features/auth/demo-accounts'
 import { getErrorMessage } from '@/lib/api/errors'
+import { ROLE_LABELS } from '@/types/roles'
 
 const loginSchema = z.object({
   email: z.email('Ingresa un correo válido'),
@@ -58,7 +60,7 @@ export function LoginPage() {
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-sm">
+      <Card className="my-8 w-full max-w-md">
         <CardHeader>
           <div className="mb-2 flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Building2 className="size-5" aria-hidden="true" />
@@ -68,7 +70,45 @@ export function LoginPage() {
           </CardTitle>
           <CardDescription>LvBuild · ERP de LV Construcciones</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-6">
+          <section aria-labelledby="demo-heading" className="flex flex-col gap-3">
+            <div>
+              <h2 id="demo-heading" className="text-sm font-semibold">
+                Probar demo
+              </h2>
+              <p className="text-sm text-muted-foreground">Entra con un clic como cualquiera de estos roles.</p>
+            </div>
+            <ul className="flex flex-col gap-2">
+              {DEMO_ACCOUNTS.map((account) => {
+                const label = ROLE_LABELS[account.role]
+                const summaryId = `demo-${account.role}-summary`
+                const isThisPending = mutation.isPending && mutation.variables?.email === account.email
+                return (
+                  <li key={account.role}>
+                    <button
+                      type="button"
+                      aria-label={`Entrar como ${label}`}
+                      aria-describedby={summaryId}
+                      disabled={mutation.isPending}
+                      onClick={() => mutation.mutate({ email: account.email, password: DEMO_PASSWORD })}
+                      className="flex w-full flex-col items-start gap-0.5 rounded-lg border border-border bg-background px-3 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
+                    >
+                      <span className="text-sm font-medium">{isThisPending ? 'Ingresando…' : label}</span>
+                      <span id={summaryId} className="text-xs text-muted-foreground">
+                        {account.summary}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+
+          <div className="flex items-center gap-3 text-xs text-muted-foreground" aria-hidden="true">
+            <span className="h-px flex-1 bg-border" />o con tu cuenta
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
           <form
             onSubmit={handleSubmit((values) => mutation.mutate(values))}
             className="flex flex-col gap-4"
